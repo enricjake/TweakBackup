@@ -1,7 +1,7 @@
-# Windows Registry Keys for TweakBackup
+# Windows Registry Keys for WinSet
 
 ## 📋 Overview
-This document contains all Windows Registry keys that TweakBackup can export and import. Each setting includes its path, value name, data type, and possible values.
+This document contains all Windows Registry keys that WinSet can export and import. Each setting includes its path, value name, data type, and possible values.
 
 **⚠️ WARNING**: Modifying the Windows Registry can cause system instability. Always create a system restore point before making changes.
 
