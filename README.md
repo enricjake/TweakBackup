@@ -44,7 +44,7 @@ Fine-tune every aspect of Windows with a user-friendly interface:
 
 ### Option 2: Run from Source
 ```bash
-git clone https://github.com/yourusername/WinSet.git
+git clone https://github.com/enricjake/WinSet.git
 cd WinSet
 pip install -r requirements.txt
 python winset.py
