@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Windows](https://img.shields.io/badge/platform-Windows-0078D4.svg)](https://www.microsoft.com/windows)
-[![Downloads](https://img.shields.io/github/downloads/yourusername/WinSet/total)](https://github.com/enricjake/WinSet/releases)
+[![Downloads](https://img.shields.io/github/downloads/enricjake/WinSet/total)](https://github.com/enricjake/WinSet/releases)
 
 **Never manually reconfigure Windows again!** WinSet is your all-in-one toolkit to export, import, and apply Windows settings with one-click presets.
 
