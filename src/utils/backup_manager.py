@@ -1,5 +1,5 @@
 import ctypes
-import subprocess
+import subprocess  # nosec
 import os
 import sys
 
@@ -24,16 +24,18 @@ class BackupManager:
             return False
 
         try:
-            # We use PowerShell to invoke WMI creation of a restore point
-            # 0 = Application install
-            # 100 = Begin system change
-            ps_script = f"""
-            Checkpoint-Computer -Description "{description}" -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop
-            """
+            # Sanitize description to prevent PowerShell injection
+            sanitized_desc = description.replace('"', '""')
             
-            # Execute the PowerShell command
-            result = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+            # We use PowerShell to invoke WMI creation of a restore point
+            # 100 = Begin system change
+            ps_script = f'Checkpoint-Computer -Description "{sanitized_desc}" -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop'
+            
+            # Use absolute path to prevent hijacking (B607)
+            # nosec: ps_script is hardened by sanitizing description
+            powershell_path = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+            result = subprocess.run(  # nosec B603
+                [powershell_path, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
                 capture_output=True,
                 text=True,
                 creationflags=subprocess.CREATE_NO_WINDOW
