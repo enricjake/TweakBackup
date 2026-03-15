@@ -1,96 +1,164 @@
 """
-Tests for registry handler
+Registry handler for WinSet - reads and writes Windows Registry values.
 """
 
-import pytest
-import sys
-import os
+import winreg
+from typing import Any, Optional
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from core.registry_handler import RegistryHandler
-from models.setting import RegistrySetting  # Fixed import path
+class RegistryHandler:
+    """Handles reading and writing Windows Registry values."""
 
-class TestRegistryHandler:
-    """Test RegistryHandler class"""
-    
-    def test_handler_initialization(self):
-        """Test creating registry handler"""
-        handler = RegistryHandler()
-        assert handler is not None
-        
-    def test_hive_conversion(self):
-        """Test hive string to constant conversion"""
-        handler = RegistryHandler()
-        
-        # Test valid hives
-        assert handler._get_hive_constant("HKEY_CURRENT_USER") is not None
-        assert handler._get_hive_constant("HKEY_LOCAL_MACHINE") is not None
-        assert handler._get_hive_constant("HKEY_CLASSES_ROOT") is not None
-        
-        # Test invalid hive
-        with pytest.raises(ValueError):
-            handler._get_hive_constant("INVALID_HIVE")
-            
-    def test_type_conversion(self):
-        """Test registry type string to constant conversion"""
-        handler = RegistryHandler()
-        
-        assert handler._get_type_constant("REG_SZ") is not None
-        assert handler._get_type_constant("REG_DWORD") is not None
-        assert handler._get_type_constant("REG_BINARY") is not None
-        
-        with pytest.raises(ValueError):
-            handler._get_type_constant("INVALID_TYPE")
-            
-    def test_read_write_mock(self, mock_registry, monkeypatch):
-        """Test registry operations with mock"""
-        handler = RegistryHandler()
-        
-        # Mock the actual registry operations
-        def mock_open_key(hive, key, reserved, access):
-            return "mock_key"
-            
-        def mock_set_value(key, value_name, reserved, type_const, value):
-            mock_registry.values[value_name] = value
+    # Maps hive name strings to winreg constants
+    HIVE_MAP = {
+        "HKEY_CURRENT_USER": winreg.HKEY_CURRENT_USER,
+        "HKEY_LOCAL_MACHINE": winreg.HKEY_LOCAL_MACHINE,
+        "HKEY_CLASSES_ROOT": winreg.HKEY_CLASSES_ROOT,
+        "HKEY_CURRENT_CONFIG": winreg.HKEY_CURRENT_CONFIG,
+        "HKEY_USERS": winreg.HKEY_USERS,
+    }
+
+    # Maps type name strings to winreg constants
+    TYPE_MAP = {
+        "REG_SZ": winreg.REG_SZ,
+        "REG_DWORD": winreg.REG_DWORD,
+        "REG_BINARY": winreg.REG_BINARY,
+        "REG_MULTI_SZ": winreg.REG_MULTI_SZ,
+        "REG_EXPAND_SZ": winreg.REG_EXPAND_SZ,
+        "REG_QWORD": winreg.REG_QWORD,
+    }
+
+    def _get_hive_constant(self, hive: str) -> int:
+        """Convert a hive name string to the corresponding winreg constant.
+
+        Args:
+            hive: Registry hive name, e.g. 'HKEY_CURRENT_USER'.
+
+        Returns:
+            The winreg hive constant.
+
+        Raises:
+            ValueError: If the hive name is not recognised.
+        """
+        if hive not in self.HIVE_MAP:
+            raise ValueError(
+                f"Unknown registry hive '{hive}'. "
+                f"Valid hives: {list(self.HIVE_MAP.keys())}"
+            )
+        return self.HIVE_MAP[hive]
+
+    def _get_type_constant(self, value_type: str) -> int:
+        """Convert a registry type name string to the corresponding winreg constant.
+
+        Args:
+            value_type: Registry type name, e.g. 'REG_DWORD'.
+
+        Returns:
+            The winreg type constant.
+
+        Raises:
+            ValueError: If the type name is not recognised.
+        """
+        if value_type not in self.TYPE_MAP:
+            raise ValueError(
+                f"Unknown registry type '{value_type}'. "
+                f"Valid types: {list(self.TYPE_MAP.keys())}"
+            )
+        return self.TYPE_MAP[value_type]
+
+    def read_value(
+        self,
+        hive: str,
+        key_path: str,
+        value_name: str,
+    ) -> Optional[Any]:
+        """Read a value from the Windows Registry.
+
+        Args:
+            hive: Registry hive name, e.g. 'HKEY_CURRENT_USER'.
+            key_path: Path to the registry key.
+            value_name: Name of the value to read.
+
+        Returns:
+            The stored value, or None if it could not be read.
+        """
+        try:
+            hive_constant = self._get_hive_constant(hive)
+            key = winreg.OpenKey(hive_constant, key_path, 0, winreg.KEY_READ)
+            value, _ = winreg.QueryValueEx(key, value_name)
+            winreg.CloseKey(key)
+            return value
+        except (FileNotFoundError, OSError, ValueError) as e:
+            print(f"Failed to read registry value '{value_name}': {e}")
+            return None
+
+    def write_value(
+        self,
+        hive: str,
+        key_path: str,
+        value_name: str,
+        value_type: str,
+        value: Any,
+    ) -> bool:
+        """Write a value to the Windows Registry.
+
+        Args:
+            hive: Registry hive name, e.g. 'HKEY_CURRENT_USER'.
+            key_path: Path to the registry key (created if it does not exist).
+            value_name: Name of the value to write.
+            value_type: Registry type string, e.g. 'REG_DWORD'.
+            value: The value to write.
+
+        Returns:
+            True on success, False on failure.
+        """
+        try:
+            hive_constant = self._get_hive_constant(hive)
+            type_constant = self._get_type_constant(value_type)
+
+            # OpenKey with write access; create key if it doesn't exist
+            key = winreg.OpenKey(
+                hive_constant,
+                key_path,
+                0,
+                winreg.KEY_SET_VALUE,
+            )
+            winreg.SetValueEx(key, value_name, 0, type_constant, value)
+            winreg.CloseKey(key)
             return True
-            
-        def mock_close_key(key):
-            pass
-            
-        monkeypatch.setattr('winreg.OpenKey', mock_open_key)
-        monkeypatch.setattr('winreg.SetValueEx', mock_set_value)
-        monkeypatch.setattr('winreg.CloseKey', mock_close_key)
-        
-        # Test writing
-        result = handler.write_value(
-            "HKEY_CURRENT_USER",
-            "Software\\Test",
-            "TestValue",
-            "REG_DWORD",
-            42
-        )
-        assert result == True
-        assert mock_registry.values["TestValue"] == 42
-        
-    def test_read_value_mock(self, mock_registry, monkeypatch):
-        """Test reading registry values with mock"""
-        handler = RegistryHandler()
-        
-        # Setup mock
-        mock_registry.values["TestValue"] = 123
-        
-        def mock_query_value(key, value_name):
-            return (mock_registry.values.get(value_name), None)
-            
-        monkeypatch.setattr('winreg.QueryValueEx', mock_query_value)
-        
-        # Mock OpenKey for reading
-        def mock_open_key(hive, key, reserved, access):
-            return "mock_key"
-        monkeypatch.setattr('winreg.OpenKey', mock_open_key)
-        
-        # Test reading
-        value = handler.read_value("HKEY_CURRENT_USER", "Software\\Test", "TestValue")
-        # Note: Our mock doesn't actually return the value, but we're just testing the flow
-        # In a real test with proper mocking, you'd get the value back
+        except (FileNotFoundError, OSError) as e:
+            # Key may not exist — try creating it
+            try:
+                hive_constant = self._get_hive_constant(hive)
+                type_constant = self._get_type_constant(value_type)
+                key = winreg.CreateKey(hive_constant, key_path)
+                winreg.SetValueEx(key, value_name, 0, type_constant, value)
+                winreg.CloseKey(key)
+                return True
+            except Exception as inner_e:
+                print(f"Failed to write registry value '{value_name}': {inner_e}")
+                return False
+        except ValueError as e:
+            print(f"Invalid hive or type: {e}")
+            return False
+
+    def delete_value(self, hive: str, key_path: str, value_name: str) -> bool:
+        """Delete a value from the Windows Registry.
+
+        Args:
+            hive: Registry hive name.
+            key_path: Path to the registry key.
+            value_name: Name of the value to delete.
+
+        Returns:
+            True on success, False on failure.
+        """
+        try:
+            hive_constant = self._get_hive_constant(hive)
+            key = winreg.OpenKey(hive_constant, key_path, 0, winreg.KEY_SET_VALUE)
+            winreg.DeleteValue(key, value_name)
+            winreg.CloseKey(key)
+            return True
+        except (FileNotFoundError, OSError, ValueError) as e:
+            print(f"Failed to delete registry value '{value_name}': {e}")
+            return False

@@ -17,7 +17,7 @@ def check_admin():
     import ctypes
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
+    except (OSError, AttributeError):
         return False
 
 def main():

@@ -2,7 +2,7 @@
 Setting models for WinSet
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, KW_ONLY
 from typing import Any, Optional, Dict
 from enum import Enum
 from datetime import datetime
@@ -69,12 +69,16 @@ class Setting:
 @dataclass
 class RegistrySetting(Setting):
     """Setting stored in Windows Registry"""
-    # Registry-specific fields (all required fields come first)
+    # KW_ONLY sentinel: all fields below this are keyword-only.
+    # This is required because the base Setting class has optional fields
+    # (e.g. last_modified) that would otherwise conflict with these
+    # required (no-default) fields in the subclass.
+    _: KW_ONLY
     hive: str  # HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, etc.
     key_path: str
     value_name: str
     value_type: str  # REG_SZ, REG_DWORD, etc.
-    # Optional fields with defaults come after all required fields
+    # Optional fields with defaults
     is_expanded: bool = False  # For REG_EXPAND_SZ
 
     def __post_init__(self):

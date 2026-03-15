@@ -4,6 +4,8 @@ from typing import Dict, List, Optional
 import json
 import hashlib
 
+from .setting import Setting
+
 @dataclass
 class Profile:
     """Complete settings profile"""

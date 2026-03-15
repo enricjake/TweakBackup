@@ -6,9 +6,6 @@ cryptography==41.0.7      # For encrypted exports (optional)
 pytest==7.4.4
 pytest-cov==4.1.0
 
-# Build
-pyinstaller==6.19.0
-
 # Development
 black==23.12.1            # Code formatting
 flake8==7.0.0             # Linting

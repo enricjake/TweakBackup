@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from core.registry_handler import RegistryHandler
-from models.registry_setting import RegistrySetting
+from models.setting import RegistrySetting
 
 class TestRegistryHandler:
     """Test RegistryHandler class"""
