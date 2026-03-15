@@ -37,9 +37,11 @@ Fine-tune every aspect of Windows with a user-friendly interface:
 ## 🚀 Quick Start
 
 ### Option 1: Download EXE (Recommended)
-1. Go to [Releases](https://github.com/enricjake/WinSet/releases)
-2. Download `WinSet.exe`
-3. Right-click and **Run as Administrator**
+1. Navigate to the **[Releases](https://github.com/enricjake/WinSet/releases)** page on GitHub.
+2. Under the **Assets** section of the latest release (e.g., v0.1.0), download `WinSet.exe`.
+3. Locate `WinSet.exe` in your Downloads folder.
+4. Right-click the file and select **Run as Administrator** (required for system modifications).
+5. Start configuring your Windows experience!
 4. Start configuring!
 
 ### Option 2: Run from Source
