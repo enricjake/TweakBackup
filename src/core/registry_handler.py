@@ -3,7 +3,11 @@ Registry handler for WinSet - reads and writes Windows Registry values.
 """
 
 import winreg
-from typing import Any, Optional
+import logging
+from typing import Any, Optional, Dict, List, Tuple
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class RegistryHandler:
@@ -87,9 +91,10 @@ class RegistryHandler:
             key = winreg.OpenKey(hive_constant, key_path, 0, winreg.KEY_READ)
             value, _ = winreg.QueryValueEx(key, value_name)
             winreg.CloseKey(key)
+            logger.debug(f"Successfully read registry value: {hive}\\{key_path}\\{value_name}")
             return value
         except (FileNotFoundError, OSError, ValueError) as e:
-            print(f"Failed to read registry value '{value_name}': {e}")
+            logger.warning(f"Failed to read registry value '{value_name}': {e}")
             return None
 
     def write_value(
@@ -125,6 +130,7 @@ class RegistryHandler:
             )
             winreg.SetValueEx(key, value_name, 0, type_constant, value)
             winreg.CloseKey(key)
+            logger.info(f"Successfully wrote registry value: {hive}\\{key_path}\\{value_name} = {value}")
             return True
         except (FileNotFoundError, OSError) as e:
             # Key may not exist — try creating it
@@ -134,12 +140,13 @@ class RegistryHandler:
                 key = winreg.CreateKey(hive_constant, key_path)
                 winreg.SetValueEx(key, value_name, 0, type_constant, value)
                 winreg.CloseKey(key)
+                logger.info(f"Created registry key and wrote value: {hive}\\{key_path}\\{value_name} = {value}")
                 return True
             except Exception as inner_e:
-                print(f"Failed to write registry value '{value_name}': {inner_e}")
+                logger.error(f"Failed to write registry value '{value_name}': {inner_e}")
                 return False
         except ValueError as e:
-            print(f"Invalid hive or type: {e}")
+            logger.error(f"Invalid hive or type: {e}")
             return False
 
     def delete_value(self, hive: str, key_path: str, value_name: str) -> bool:
@@ -158,7 +165,123 @@ class RegistryHandler:
             key = winreg.OpenKey(hive_constant, key_path, 0, winreg.KEY_SET_VALUE)
             winreg.DeleteValue(key, value_name)
             winreg.CloseKey(key)
+            logger.info(f"Successfully deleted registry value: {hive}\\{key_path}\\{value_name}")
             return True
         except (FileNotFoundError, OSError, ValueError) as e:
-            print(f"Failed to delete registry value '{value_name}': {e}")
+            logger.warning(f"Failed to delete registry value '{value_name}': {e}")
             return False
+
+    def delete_key(self, hive: str, key_path: str) -> bool:
+        """Delete a registry key and all its subkeys/values.
+
+        Args:
+            hive: Registry hive name.
+            key_path: Path to the registry key to delete.
+
+        Returns:
+            True on success, False on failure.
+        """
+        try:
+            hive_constant = self._get_hive_constant(hive)
+            winreg.DeleteKey(hive_constant, key_path)
+            logger.info(f"Successfully deleted registry key: {hive}\\{key_path}")
+            return True
+        except (FileNotFoundError, OSError, ValueError) as e:
+            logger.warning(f"Failed to delete registry key '{key_path}': {e}")
+            return False
+
+    def key_exists(self, hive: str, key_path: str) -> bool:
+        """Check if a registry key exists.
+
+        Args:
+            hive: Registry hive name.
+            key_path: Path to the registry key.
+
+        Returns:
+            True if the key exists, False otherwise.
+        """
+        try:
+            hive_constant = self._get_hive_constant(hive)
+            key = winreg.OpenKey(hive_constant, key_path, 0, winreg.KEY_READ)
+            winreg.CloseKey(key)
+            return True
+        except (FileNotFoundError, OSError, ValueError):
+            return False
+
+    def value_exists(self, hive: str, key_path: str, value_name: str) -> bool:
+        """Check if a registry value exists.
+
+        Args:
+            hive: Registry hive name.
+            key_path: Path to the registry key.
+            value_name: Name of the value to check.
+
+        Returns:
+            True if the value exists, False otherwise.
+        """
+        try:
+            hive_constant = self._get_hive_constant(hive)
+            key = winreg.OpenKey(hive_constant, key_path, 0, winreg.KEY_READ)
+            winreg.QueryValueEx(key, value_name)
+            winreg.CloseKey(key)
+            return True
+        except (FileNotFoundError, OSError, ValueError):
+            return False
+
+    def read_multiple_values(
+        self, 
+        hive: str, 
+        key_path: str, 
+        value_names: List[str]
+    ) -> Dict[str, Optional[Any]]:
+        """Read multiple values from the same registry key.
+
+        Args:
+            hive: Registry hive name.
+            key_path: Path to the registry key.
+            value_names: List of value names to read.
+
+        Returns:
+            Dictionary mapping value names to their values (or None if not found).
+        """
+        results = {}
+        try:
+            hive_constant = self._get_hive_constant(hive)
+            key = winreg.OpenKey(hive_constant, key_path, 0, winreg.KEY_READ)
+            
+            for value_name in value_names:
+                try:
+                    value, _ = winreg.QueryValueEx(key, value_name)
+                    results[value_name] = value
+                    logger.debug(f"Read registry value: {hive}\\{key_path}\\{value_name}")
+                except (FileNotFoundError, OSError):
+                    results[value_name] = None
+                    logger.warning(f"Registry value not found: {hive}\\{key_path}\\{value_name}")
+            
+            winreg.CloseKey(key)
+            return results
+        except (FileNotFoundError, OSError, ValueError) as e:
+            logger.error(f"Failed to read multiple registry values: {e}")
+            return {name: None for name in value_names}
+
+    def write_multiple_values(
+        self, 
+        operations: List[Tuple[str, str, str, str, Any]]
+    ) -> Dict[str, bool]:
+        """Write multiple registry values in a batch operation.
+
+        Args:
+            operations: List of tuples containing (hive, key_path, value_name, value_type, value).
+
+        Returns:
+            Dictionary mapping operation indices to success status.
+        """
+        results = {}
+        for i, (hive, key_path, value_name, value_type, value) in enumerate(operations):
+            try:
+                success = self.write_value(hive, key_path, value_name, value_type, value)
+                results[i] = success
+            except Exception as e:
+                logger.error(f"Batch operation {i} failed: {e}")
+                results[i] = False
+        return results
