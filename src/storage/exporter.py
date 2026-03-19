@@ -39,6 +39,9 @@ class ProfileExporter:
                 
                 # If the registry value exists, update the setting and add it
                 if current_value is not None:
+                    # Convert bytes to string if needed for JSON serialization
+                    if isinstance(current_value, bytes):
+                        current_value = current_value.decode('utf-8', errors='replace')
                     setting.value = current_value
                     profile.add_setting(setting)
 
