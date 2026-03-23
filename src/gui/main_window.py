@@ -321,16 +321,18 @@ class MainWindow:
         
         # Dynamically load additional presets
         existing_ids = {p["id"] for p in presets}
-        # Fix: Use get_preset_info() instead of get_preset_list()
+        # Use get_preset_list() to get all preset IDs
         try:
-            preset_info = self.preset_manager.get_preset_info()
-            for preset_id, info in preset_info.items():
+            preset_list = self.preset_manager.get_preset_list()
+            for preset_id in preset_list:
                 if preset_id not in existing_ids:
-                    presets.append({
-                        "id": preset_id,
-                        "title": info.get("name", preset_id),
-                        "desc": info.get("description", "")
-                    })
+                    info = self.preset_manager.get_preset_info(preset_id)
+                    if info:
+                        presets.append({
+                            "id": preset_id,
+                            "title": info.get("name", preset_id),
+                            "desc": info.get("description", "")
+                        })
         except AttributeError:
             # Fallback for older versions or if method doesn't exist
             pass
@@ -354,15 +356,21 @@ class MainWindow:
         
         # Dynamically load additional presets
         existing_ids = {p["id"] for p in presets}
-        # Fix: Use get_preset_info() instead of get_preset_list()
-        preset_info = self.preset_manager.get_preset_info()
-        for preset_id, info in preset_info.items():
-            if preset_id not in existing_ids:
-                presets.append({
-                    "id": preset_id,
-                    "title": info.get("name", preset_id),
-                    "desc": info.get("description", "")
-                })
+        # Use get_preset_list() to get all preset IDs
+        try:
+            preset_list = self.preset_manager.get_preset_list()
+            for preset_id in preset_list:
+                if preset_id not in existing_ids:
+                    info = self.preset_manager.get_preset_info(preset_id)
+                    if info:
+                        presets.append({
+                            "id": preset_id,
+                            "title": info.get("name", preset_id),
+                            "desc": info.get("description", "")
+                        })
+        except AttributeError:
+            # Fallback for older versions or if method doesn't exist
+            pass
 
     def _create_manual_tab(self):
         """Create manual configuration tab"""
