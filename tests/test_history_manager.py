@@ -10,7 +10,7 @@ import sqlite3
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from history_manager import HistoryManager
+from src.core.history_manager import HistoryManager
 from src.models.setting import RegistrySetting, SettingCategory, SettingType
 
 
