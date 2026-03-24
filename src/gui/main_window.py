@@ -56,6 +56,8 @@ class MainWindow:
         self.presets_canvas: Optional[tk.Canvas] = None
         self.presets_scrollable: Optional[ttk.Frame] = None
         self.presets_window_id: Optional[int] = None
+        self.is_busy: bool = False
+        self.restart_pending: bool = False
         self.root.geometry("1100x750")
         self.root.minsize(1000, 700)
         
@@ -110,12 +112,13 @@ class MainWindow:
                 pass
         
         # Professional styling with Windows 11 Fluent Design
-        bg_color = "#fafafa"  # Light gray background (Windows 11)
-        fg_color = "#323130"  # Dark text (Windows 11)
-        accent_color = "#0078d4"  # Windows 11 blue
-        border_color = "#e1dfdd"  # Light border (Windows 11)
-        tab_bg = "#f3f2f1"  # Tab background (Windows 11)
-        tab_selected = "#ffffff"  # Selected tab background
+        # Modern dark-mode palette
+        bg_color = "#0f1117"  # Deep charcoal background
+        fg_color = "#e8eaf0"  # Off-white text for readability
+        accent_color = "#4fc3f7"  # Electric blue accent
+        border_color = "#1e2130"  # Subtle border
+        tab_bg = "#1a1d2e"  # Darker tab background
+        tab_selected = "#0f1117"  # Match main background when selected
 
         # Store colors for use in other methods
         self.bg_color = bg_color
@@ -123,30 +126,29 @@ class MainWindow:
         self.accent_color = accent_color
         self.border_color = border_color
         
-        # Configure styles - all text black for maximum readability
-        # The 'clam' theme gives labels a gray default background; force it to the app surface.
+        # Configure styles
         style.configure("TFrame", background=bg_color)
-        style.configure("TLabel", background=bg_color, foreground="black", font=("Segoe UI", 9))
-        style.configure("Header.TLabel", background=bg_color, font=("Segoe UI", 18, "bold"), foreground="black")
-        style.configure("Bold.TLabel", background=bg_color, font=("Segoe UI", 10, "bold"), foreground="black")
-        style.configure("Setting.TLabel", background=bg_color, font=("Segoe UI", 11, "bold"), foreground="black")
-        style.configure("Description.TLabel", background=bg_color, font=("Segoe UI", 9), foreground="black")
+        style.configure("TLabel", background=bg_color, foreground=fg_color, font=("Segoe UI", 10))
+        style.configure("Header.TLabel", background=bg_color, font=("Segoe UI", 20, "bold"), foreground=accent_color)
+        style.configure("Bold.TLabel", background=bg_color, font=("Segoe UI", 11, "bold"), foreground=fg_color)
+        style.configure("Setting.TLabel", background=bg_color, font=("Segoe UI", 11, "bold"), foreground=fg_color)
+        style.configure("Description.TLabel", background=bg_color, font=("Segoe UI", 10), foreground="#a0a4b8")
         
         style.configure("TButton", 
-                       background="#ffffff", 
-                       foreground="black", 
-                       font=("Segoe UI", 9),
+                       background="#1a1d2e", 
+                       foreground=fg_color, 
+                       font=("Segoe UI", 10),
                        padding=8,
-                       borderwidth=1,
-                       relief="solid")
+                       borderwidth=0,
+                       relief="flat")
         style.map("TButton",
-                 background=[("active", "#e9ecef"), ("pressed", accent_color)],
-                 foreground=[("pressed", "white")])
+                 background=[("active", "#252840"), ("pressed", accent_color)],
+                 foreground=[("pressed", "#0f1117")])
         
         style.configure("Accent.TButton", 
                        background=accent_color, 
-                       foreground="white", 
-                       font=("Segoe UI", 9, "bold"),
+                       foreground="#0f1117", 
+                       font=("Segoe UI", 10, "bold"),
                        padding=8,
                        borderwidth=0,
                        relief="flat")
@@ -155,14 +157,16 @@ class MainWindow:
         
         style.configure("TCheckbutton", 
                        background=bg_color, 
-                       foreground="black", 
-                       font=("Segoe UI", 9))
+                       foreground=fg_color, 
+                       font=("Segoe UI", 10))
         
         style.configure("TEntry", 
-                       fieldbackground="white", 
+                       fieldbackground="#1a1d2e",
+                       foreground=fg_color,
+                       insertcolor=fg_color,
                        borderwidth=1,
                        relief="solid",
-                       font=("Segoe UI", 9))
+                       font=("Segoe UI", 10))
 
         style.configure(
             "TLabelframe",
@@ -173,8 +177,8 @@ class MainWindow:
         style.configure(
             "TLabelframe.Label",
             background=bg_color,
-            foreground="black",
-            font=("Segoe UI", 9, "bold"),
+            foreground=accent_color,
+            font=("Segoe UI", 10, "bold"),
         )
         
         style.configure("TNotebook", background=bg_color, borderwidth=0)
@@ -191,7 +195,7 @@ class MainWindow:
         # Windows 11 style mapping with consistent padding to prevent shrinking
         style.map(
             "TNotebook.Tab",
-            background=[("selected", tab_selected), ("active", "#edebe9")],
+            background=[("selected", tab_selected), ("active", "#1e2130")],
             foreground=[("selected", accent_color), ("active", fg_color)],
             padding=[("selected", [24, 12]), ("active", [24, 12])]
         )
@@ -204,22 +208,24 @@ class MainWindow:
         )
         
         style.configure("TCombobox", 
-                       fieldbackground="white",
+                       fieldbackground="#1a1d2e",
+                       foreground=fg_color,
+                       insertcolor=fg_color,
                        borderwidth=1,
                        relief="solid",
-                       font=("Segoe UI", 9))
+                       font=("Segoe UI", 10))
 
         # Modern scrollbar styling used across tabs.
         style.configure(
             "Modern.Vertical.TScrollbar",
-            background="#d6d9de",
-            troughcolor="#f1f3f5",
-            bordercolor="#f1f3f5",
-            arrowcolor="#6b7280",
-            darkcolor="#d6d9de",
-            lightcolor="#d6d9de",
+            background="#2a2d3e",
+            troughcolor="#0f1117",
+            bordercolor="#1e2130",
+            arrowcolor="#4fc3f7",
+            darkcolor="#2a2d3e",
+            lightcolor="#2a2d3e",
             gripcount=0,
-            width=12,
+            width=10,
         )
         style.map(
             "Modern.Vertical.TScrollbar",
@@ -307,7 +313,7 @@ class MainWindow:
         
         desc_label = ttk.Label(welcome_frame, 
                             text="Windows Configuration Toolkit\nEasily backup, restore, and optimize your Windows experience.", 
-                            font=("Segoe UI", 12))
+                            font=("Segoe UI", 11), foreground="#a0a4b8")
         desc_label.pack(anchor="w", pady=(0, 15))
         
         actions_frame = ttk.LabelFrame(self.home_scrollable, text="Quick Actions", padding=20)
@@ -419,14 +425,27 @@ class MainWindow:
         for i, preset in enumerate(presets):
             row = i // 3
             col = i % 3
-            frame = ttk.Frame(presets_frame, relief=tk.RAISED, borderwidth=1)
-            frame.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
+            # Modern card container
+            card_outer = tk.Frame(presets_frame, bg="#1e2130", padx=1, pady=1)
+            card_outer.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
             
-            ttk.Label(frame, text=preset["title"], font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=10, pady=(10, 5))
-            ttk.Label(frame, text=preset["desc"], wraplength=200).pack(anchor="w", padx=10, pady=(0, 10))
+            card = tk.Frame(card_outer, bg="#181b2a")
+            card.pack(fill=tk.BOTH, expand=True)
             
-            ttk.Button(frame, text="Apply Preset", 
-                    command=lambda p=preset["id"]: self.apply_preset(p)).pack(pady=(0, 10))
+            # Left accent border
+            accent_bar = tk.Frame(card, bg=self.accent_color, width=3)
+            accent_bar.pack(side=tk.LEFT, fill=tk.Y)
+            
+            content = tk.Frame(card, bg="#181b2a", padx=15, pady=15)
+            content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            
+            ttk.Label(content, text=preset["title"], font=("Segoe UI", 12, "bold"), background="#181b2a").pack(anchor="w", pady=(0, 5))
+            ttk.Label(content, text=preset["desc"], wraplength=180, background="#181b2a", foreground="#a0a4b8").pack(anchor="w", pady=(0, 15))
+            
+            btn_frame = tk.Frame(content, bg="#181b2a")
+            btn_frame.pack(fill=tk.X)
+            ttk.Button(btn_frame, text="Apply Preset", 
+                    command=lambda p=preset["id"]: self.apply_preset(p)).pack(side=tk.LEFT)
         
         # Configure grid weights
         for i in range(3):
@@ -513,8 +532,27 @@ class MainWindow:
         tree_frame = ttk.Frame(container)
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
+        # Style the Treeview
+        style = ttk.Style()
+        style.configure("Treeview", 
+                       background="#181b2a", 
+                       foreground=self.fg_color, 
+                       fieldbackground="#181b2a",
+                       rowheight=35,
+                       borderwidth=0,
+                       font=("Segoe UI", 10))
+        style.configure("Treeview.Heading", 
+                       background="#1e2130", 
+                       foreground=self.accent_color, 
+                       font=("Segoe UI", 10, "bold"),
+                       borderwidth=1)
+        style.map("Treeview", background=[("selected", self.accent_color)], foreground=[("selected", "#0f1117")])
+
         cols = ("Timestamp", "Setting", "Old Value", "New Value")
         self.history_tree = ttk.Treeview(tree_frame, columns=cols, show='headings')
+        self.history_tree.tag_configure('oddrow', background="#1e2130")
+        self.history_tree.tag_configure('evenrow', background="#181b2a")
+        
         for col in cols:
             self.history_tree.heading(col, text=col)
         self.history_tree.column("Timestamp", width=160, anchor='w')
@@ -546,8 +584,9 @@ class MainWindow:
             self.history_tree.delete(i)
         
         history_data = self.history_manager.get_history()
-        for item in history_data:
-            self.history_tree.insert("", "end", iid=item[0], values=item[1:])
+        for count, item in enumerate(history_data):
+            tag = 'evenrow' if count % 2 == 0 else 'oddrow'
+            self.history_tree.insert("", "end", iid=item[0], values=item[1:], tags=(tag,))
 
     def _revert_selected_change(self):
         """Revert the currently selected change in the history treeview."""
@@ -708,15 +747,20 @@ class MainWindow:
             category_frame = tk.Frame(self.manual_scrollable, bg=self.bg_color)
             category_frame.pack(fill=tk.X, pady=(6, 0), padx=10)
 
-            for setting in filtered:
+            for i, setting in enumerate(filtered):
                 self._create_setting_row(category_frame, setting)
         
         self.root.after(50, self._rebind_scroll_events)
 
-    def _create_setting_row(self, parent, setting):
+    def _create_setting_row(self, parent, setting, is_alt=False):
         """Create a row for a setting with professional controls"""
-        row_frame = tk.Frame(parent, bg=self.bg_color)
-        row_frame.pack(fill=tk.X, pady=4)
+        bg = self.bg_color
+        row_frame = tk.Frame(parent, bg=bg)
+        row_frame.pack(fill=tk.X, pady=0)  # Remove pady to make shading more continuous
+        
+        # Setting container with padding
+        inner_row = tk.Frame(row_frame, bg=bg, padx=10, pady=8)
+        inner_row.pack(fill=tk.X)
         
         # Check current state
         current_val = self.registry_handler.read_value(setting.hive, setting.key_path, setting.value_name)
@@ -726,44 +770,56 @@ class MainWindow:
         is_expanded = (self.expanded_setting_id == setting_id)
         
         # Create expandable setting frame
-        setting_frame = tk.Frame(row_frame, bg=self.bg_color)
+        setting_frame = tk.Frame(inner_row, bg=bg)
         setting_frame.pack(fill=tk.X)
         
         # Header with triangle and name
-        header_frame = tk.Frame(setting_frame, bg=self.bg_color)
+        header_frame = tk.Frame(setting_frame, bg=bg)
         header_frame.pack(fill=tk.X)
-        
         
         # Triangle indicator
         triangle = "▼" if is_expanded else "▶"
-        triangle_label = ttk.Label(header_frame, text=triangle, font=("Segoe UI", 10), foreground=self.accent_color)
+        triangle_label = tk.Label(header_frame, text=triangle, font=("Segoe UI", 10), 
+                                foreground=self.accent_color, bg=bg)
         triangle_label.pack(side=tk.LEFT, padx=(0, 8))
         
         # Setting name
-        name_label = ttk.Label(header_frame, text=setting.name, style="Setting.TLabel", 
-                            cursor="hand2")
+        name_label = tk.Label(header_frame, text=setting.name, font=("Segoe UI", 11, "bold"),
+                            foreground=self.fg_color, bg=bg, cursor="hand2")
         name_label.pack(side=tk.LEFT)
         
         # Current value display (user-friendly)
         friendly_label = self._get_friendly_label_for_value(setting, current_val)
-        current_value_label = ttk.Label(header_frame, text=f"Current: {friendly_label}", 
-                                      style="Description.TLabel", foreground=self.accent_color)
+        current_value_label = tk.Label(header_frame, text=f"Current: {friendly_label}", 
+                                     font=("Segoe UI", 10), foreground=self.accent_color, bg=bg)
         current_value_label.pack(side=tk.LEFT, padx=(10, 0))
         
         # Bind click event to toggle expansion
         for widget in [triangle_label, name_label]:
             widget.bind("<Button-1>", lambda e, sid=setting_id: self._toggle_setting_expansion(sid))
         
-        # Options frame (initially hidden)
-        options_frame = ttk.Frame(setting_frame)
+        # Options container for the indented content and guide line
+        options_container = tk.Frame(setting_frame, bg=bg)
+        
+        # Vertical guide line (muted color)
+        # Aligns with the center of the triangle (approx 6px from left)
+        guide_line = tk.Frame(options_container, bg="#3a3f54", width=1)
+        guide_line.pack(side=tk.LEFT, fill=tk.Y, padx=(6, 0), pady=(0, 10))
+        
+        options_frame = tk.Frame(options_container, bg=bg)
+        options_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(34, 0), pady=(12, 0))
+        
         if is_expanded:
-            options_frame.pack(fill=tk.X, pady=(12, 0), padx=(25, 0))
+            options_container.pack(fill=tk.X, padx=(0, 20))
+            # Re-bind mouse events to this new container
+            options_container.bind("<MouseWheel>", self._on_mouse_wheel)
         
         # Parse setting options
         options = self._parse_setting_options(setting, current_val)
         
         buttons = []
         slider_var = None
+
         if self._should_use_slider(setting, options):
             slider_var = self._create_slider_control(options_frame, setting, current_val, options, setting_id)
         elif self._should_use_text_entry(setting, options):
@@ -774,11 +830,13 @@ class MainWindow:
             buttons = self._create_simple_controls(options_frame, setting, current_val, options, setting_id)
 
         if setting.description:
-            ttk.Label(options_frame, text=setting.description, style="Description.TLabel", wraplength=700, justify=tk.LEFT).pack(anchor="w", pady=(8, 0))
+            desc_lbl = tk.Label(options_frame, text=setting.description, font=("Segoe UI", 10), 
+                             foreground="#a0a4b8", bg=bg, wraplength=700, justify=tk.LEFT)
+            desc_lbl.pack(anchor="w", pady=(8, 0))
 
         # Add system settings link for complex settings
         if self._should_show_system_settings_link(setting):
-            link_frame = ttk.Frame(options_frame)
+            link_frame = tk.Frame(options_frame, bg=bg)
             link_frame.pack(anchor="w", pady=(8, 0))
             
             link_btn = self._create_system_settings_link(link_frame, setting)
@@ -790,10 +848,10 @@ class MainWindow:
         self.manual_row_widgets[setting_id] = {
             "setting": setting,
             "triangle": triangle_label,
-            "options_frame": options_frame,
+            "options_frame": options_container, # Store the container for pack/forget
             "buttons": buttons,
             "slider_var": slider_var,
-            "current_value_label": current_value_label,  # Store reference for updates
+            "current_value_label": current_value_label,
         }
 
     def _should_use_slider(self, setting, options):
