@@ -59,11 +59,25 @@ def build():
     print("Running PyInstaller…")
     # Run PyInstaller from the project root. This ensures the 'dist' and 'build'
     # folders are created in a predictable location.
-    result = subprocess.run(cmd, check=False, cwd=PROJECT_ROOT)
+    # Use Popen to have better control over the subprocess
+    try:
+        process = subprocess.Popen(cmd, cwd=PROJECT_ROOT)
+        # Wait for the process with no timeout (PyInstaller can take a while)
+        stdout, stderr = process.communicate()
+    except KeyboardInterrupt:
+        print("\nBuild interrupted. Terminating PyInstaller…")
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        print("Build cancelled.")
+        sys.exit(1)
 
-    if result.returncode != 0:
+    if process.returncode != 0:
         print("Build failed.")
-        sys.exit(result.returncode)
+        sys.exit(process.returncode)
 
     print(f"Build complete — output is in {PROJECT_ROOT / 'dist' / 'WinSet.exe'}")
 

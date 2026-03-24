@@ -72,7 +72,11 @@
         "value": "ColorPrevalence",
         "type": "REG_DWORD",
         "values": "1 = Show accent on title bars, 0 = Don't show",
-        "description": "Show accent color on window title bars"
+        "description": "Show accent color on window title bars",
+        "option_hints": {
+          "Show accent on title bars": "Window title bars will use your chosen Windows accent color",
+          "Don't show": "Title bars will use default white/gray color regardless of accent color"
+        }
       },
       {
         "name": "Show Accent on Start/Taskbar",
@@ -90,7 +94,11 @@
         "value": "EnableTransparency",
         "type": "REG_DWORD",
         "values": "1 = Enable, 0 = Disable",
-        "description": "Enable transparency effects in Windows"
+        "description": "Enable transparency effects in Windows",
+        "option_hints": {
+          "Enable": "Makes Start menu, taskbar, and window borders transparent/blurry",
+          "Disable": "Makes Start menu, taskbar, and window borders solid colors"
+        }
       },
       {
         "name": "Taskbar Transparency",
@@ -99,7 +107,11 @@
         "value": "TaskbarTransparency",
         "type": "REG_DWORD",
         "values": "1 = Enable, 0 = Disable",
-        "description": "Make taskbar transparent"
+        "description": "Make taskbar transparent",
+        "option_hints": {
+          "Enable": "Taskbar becomes transparent/blurry (separate from general transparency setting)",
+          "Disable": "Taskbar remains solid even if general transparency is enabled"
+        }
       },
       {
         "name": "Desktop Icon Visibility - This PC",
@@ -188,7 +200,11 @@
         "key": "Control Panel\\Desktop",
         "value": "UserPreferencesMask",
         "type": "REG_BINARY",
-        "description": "Complex binary value controlling visual effects"
+        "values": "Complex binary - controls various animation settings",
+        "description": "Complex binary value controlling visual effects",
+        "option_hints": {
+          "Complex binary": "This setting controls multiple visual effects. Use System Settings for detailed configuration."
+        }
       },
       {
         "name": "Show Shadows Under Windows",
@@ -318,7 +334,11 @@
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Streams",
         "value": "Settings",
         "type": "REG_BINARY",
-        "description": "Binary value containing view settings (Details, Icons, List, etc.)"
+        "values": "Complex binary - contains view preferences",
+        "description": "Binary value containing view settings (Details, Icons, List, etc.)",
+        "option_hints": {
+          "Complex binary": "This setting contains folder view preferences. Use System Settings for detailed configuration."
+        }
       },
       {
         "name": "Folder Merge Conflicts",
@@ -456,7 +476,14 @@
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StuckRects3",
         "value": "Settings",
         "type": "REG_BINARY",
-        "description": "Binary value containing taskbar position (Bottom, Top, Left, Right)"
+        "values": "0 = Bottom, 1 = Left, 2 = Top, 3 = Right",
+        "description": "Binary value containing taskbar position (Bottom, Top, Left, Right)",
+        "option_hints": {
+          "Bottom": "Taskbar positioned at bottom of screen (default)",
+          "Left": "Taskbar positioned on left side of screen",
+          "Top": "Taskbar positioned at top of screen",
+          "Right": "Taskbar positioned on right side of screen"
+        }
       },
       {
         "name": "Auto-Hide Taskbar",
@@ -464,7 +491,12 @@
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StuckRects3",
         "value": "Settings",
         "type": "REG_BINARY",
-        "description": "Binary value containing auto-hide setting"
+        "values": "0 = Enable, 2 = Disable",
+        "description": "Binary value containing auto-hide setting",
+        "option_hints": {
+          "Enable": "Taskbar automatically hides when not in use (appears when mouse moves to bottom)",
+          "Disable": "Taskbar remains visible at all times"
+        }
       },
       {
         "name": "Lock Taskbar",
@@ -652,7 +684,11 @@
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\CloudStore\\Store\\Cache\\DefaultAccount\\$$start.layout\\Current",
         "value": "Data",
         "type": "REG_BINARY",
-        "description": "Binary data containing Start menu layout configuration"
+        "values": "Complex binary - contains Start menu layout",
+        "description": "Binary data containing Start menu layout configuration",
+        "option_hints": {
+          "Complex binary": "This setting contains your Start menu layout and pinned items. Use System Settings for detailed configuration."
+        }
       },
       {
         "name": "Pinned Taskbar Apps",
@@ -660,7 +696,11 @@
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Taskband",
         "value": "Favorites",
         "type": "REG_BINARY",
-        "description": "Binary list of pinned taskbar applications"
+        "values": "Complex binary - contains pinned apps",
+        "description": "Binary list of pinned taskbar applications",
+        "option_hints": {
+          "Complex binary": "This setting contains your pinned taskbar applications. Use System Settings for detailed configuration."
+        }
       },
       {
         "name": "Pinned Start Menu Apps",
@@ -668,7 +708,11 @@
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartPage2",
         "value": "Favorites",
         "type": "REG_BINARY",
-        "description": "Binary list of pinned Start menu items"
+        "values": "Complex binary - contains pinned items",
+        "description": "Binary list of pinned Start menu items",
+        "option_hints": {
+          "Complex binary": "This setting contains your pinned Start menu applications. Use System Settings for detailed configuration."
+        }
       }
     ]
   },
@@ -682,14 +726,8 @@
         "value": "ActivePowerScheme",
         "type": "REG_SZ",
         "format": "GUID (e.g., 381b4222-f694-41f0-9685-ff5bb260df2e)",
-        "description": "GUID of currently active power plan"
-      },
-      {
-        "name": "Power Plan GUIDs Reference",
-        "balanced": "381b4222-f694-41f0-9685-ff5bb260df2e",
-        "power saver": "a1841308-3541-4fab-bc81-f71556f20b4a",
-        "high performance": "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
-        "ultimate performance": "e9a42b02-d5df-448d-aa00-03f14749eb61"
+        "description": "GUID of currently active power plan",
+        "values": "381b4222-f694-41f0-9685-ff5bb260df2e = Balanced, a1841308-3541-4fab-bc81-f71556f20b4a = Power Saver, 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c = High Performance, e9a42b02-d5df-448d-aa00-03f14749eb61 = Ultimate Performance"
       },
       {
         "name": "Monitor Timeout (Plugged In)",
@@ -697,7 +735,6 @@
         "key": "Control Panel\\PowerCfg\\PowerPolicies",
         "value": "VideoTimeoutAC",
         "type": "REG_DWORD",
-        "unit": "Minutes",
         "description": "Minutes before monitor turns off when plugged in"
       },
       {
@@ -706,7 +743,6 @@
         "key": "Control Panel\\PowerCfg\\PowerPolicies",
         "value": "VideoTimeoutDC",
         "type": "REG_DWORD",
-        "unit": "Minutes",
         "description": "Minutes before monitor turns off on battery"
       },
       {
@@ -715,7 +751,6 @@
         "key": "Control Panel\\PowerCfg\\PowerPolicies",
         "value": "SleepTimeoutAC",
         "type": "REG_DWORD",
-        "unit": "Minutes",
         "description": "Minutes before PC sleeps when plugged in"
       },
       {
@@ -724,20 +759,23 @@
         "key": "Control Panel\\PowerCfg\\PowerPolicies",
         "value": "SleepTimeoutDC",
         "type": "REG_DWORD",
-        "unit": "Minutes",
         "description": "Minutes before PC sleeps on battery"
       },
       {
-        "name": "Hibernate Timeout (Plugged In)",
+        "name": "Hibernate After (Plugged In)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\{238C9FA8-0AAD-41ED-83F4-97BE242C8F20}\\{9d7815a6-7ee4-497e-8888-515a05f02364}",
-        "value": "Attributes (for settings), DefaultPowerSchemeValues for values",
-        "description": "Complex - requires reading subkeys per power scheme"
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{238C9FA8-0AAD-41ED-83F4-97BE242C8F20}\\{9d7815a6-7ee4-497e-8888-515a05f02364}",
+        "value": "ACSettingIndex",
+        "type": "REG_DWORD",
+        "description": "Minutes before hibernation when plugged in (0 = Never)"
       },
       {
-        "name": "Hibernate Timeout (On Battery)",
+        "name": "Hibernate After (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "description": "Similar to above, under DC subkey"
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{238C9FA8-0AAD-41ED-83F4-97BE242C8F20}\\{9d7815a6-7ee4-497e-8888-515a05f02364}",
+        "value": "DCSettingIndex",
+        "type": "REG_DWORD",
+        "description": "Minutes before hibernation on battery (0 = Never)"
       },
       {
         "name": "Lid Close Action (Plugged In)",
@@ -769,7 +807,7 @@
       {
         "name": "Power Button Action (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{4f971e89-eebd-4455-a8de-9e59040e7347}\\{7648efa3-dd9c-4e3e-b566-50f929386280}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Action when power button pressed (on battery)"
@@ -785,7 +823,7 @@
       {
         "name": "Sleep Button Action (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{4f971e89-eebd-4455-a8de-9e59040e7347}\\{96996bc0-ad50-47ec-923b-6f41874dd9eb}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Action when sleep button pressed (on battery)"
@@ -802,7 +840,7 @@
       {
         "name": "Hard Disk Turn Off After (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{0012ee47-9041-4b5d-9b77-535fba8b1442}\\{6738e2c4-e8a5-4a42-b16a-e040e769756e}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Turn off hard disk after (on battery)"
@@ -819,7 +857,7 @@
       {
         "name": "USB Selective Suspend (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{2a737441-1930-4402-8d77-b2bebba308a3}\\{48e6b7a6-50f5-4782-a5d4-53bb8f07e226}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Enable USB selective suspend (on battery)"
@@ -836,7 +874,7 @@
       {
         "name": "PCI Express Link State Power Management (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{501a4d13-42af-4429-9fd1-a8218c268e20}\\{ee12f906-d277-404b-b6da-e5fa1a576df5}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "PCI Express power management (on battery)"
@@ -853,7 +891,7 @@
       {
         "name": "Processor Power Management - Minimum State (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{54533251-82be-4824-96c1-47b60b740d00}\\{893dee8e-2bef-41e0-89c6-b55d0929964c}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Minimum processor state (on battery)"
@@ -870,7 +908,7 @@
       {
         "name": "Processor Power Management - Maximum State (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{54533251-82be-4824-96c1-47b60b740d00}\\{bc5038f7-23e0-4960-96da-33abaf5935ec}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Maximum processor state (on battery)"
@@ -887,7 +925,7 @@
       {
         "name": "Processor Power Management - System Cooling Policy (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{54533251-82be-4824-96c1-47b60b740d00}\\{94d3a615-a899-4ac5-ae2b-e4d8f634367f}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Cooling policy (on battery)"
@@ -904,7 +942,7 @@
       {
         "name": "Display Brightness (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{7516b95f-f776-4464-8c53-06167f40cc99}\\{aded5e82-b909-4619-9949-f5d71dac0bcb}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Display brightness (on battery)"
@@ -921,7 +959,7 @@
       {
         "name": "Adaptive Brightness (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{7516b95f-f776-4464-8c53-06167f40cc99}\\{fbd9aa66-9553-4097-ba44-ed6e9d65eab8}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Enable adaptive brightness (on battery)"
@@ -938,7 +976,7 @@
       {
         "name": "Wireless Adapter Power Saving Mode (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{19cbb8fa-5279-450e-9fac-8a3d5fedd0c1}\\{12bbebe6-58d6-4636-95bb-3217ef867c1a}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
         "description": "Wireless adapter power saving (on battery)"
@@ -1003,16 +1041,31 @@
         "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{238C9FA8-0AAD-41ED-83F4-97BE242C8F20}\\{9d7815a6-7ee4-497e-8888-515a05f02364}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
-        "unit": "Minutes",
-        "description": "Hibernate after (on battery)"
+        "values": "0 = Never, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 240 = 4 hours, 360 = 6 hours, 480 = 8 hours, 720 = 12 hours",
+        "description": "Hibernate after (on battery)",
+        "option_hints": {
+          "Never": "Never hibernate automatically on battery",
+          "15 minutes": "Hibernate after 15 minutes of inactivity on battery",
+          "30 minutes": "Hibernate after 30 minutes of inactivity on battery",
+          "1 hour": "Hibernate after 1 hour of inactivity on battery",
+          "2 hours": "Hibernate after 2 hours of inactivity on battery"
+        }
       },
       {
         "name": "Hibernate After (Plugged In)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{238C9FA8-0AAD-41ED-83F4-97BE242C8F20}\\{9d7815a6-7ee4-497e-8888-515a05f02364}",
         "value": "ACSettingIndex",
         "type": "REG_DWORD",
-        "description": "Hibernate after (plugged in)"
+        "values": "0 = Never, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 240 = 4 hours, 360 = 6 hours, 480 = 8 hours, 720 = 12 hours",
+        "description": "Hibernate after (plugged in)",
+        "option_hints": {
+          "Never": "Never hibernate automatically",
+          "15 minutes": "Hibernate after 15 minutes of inactivity",
+          "30 minutes": "Hibernate after 30 minutes of inactivity",
+          "1 hour": "Hibernate after 1 hour of inactivity",
+          "2 hours": "Hibernate after 2 hours of inactivity"
+        }
       },
       {
         "name": "Allow Hybrid Sleep (Plugged In)",
@@ -1026,10 +1079,15 @@
       {
         "name": "Allow Hybrid Sleep (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{238C9FA8-0AAD-41ED-83F4-97BE242C8F20}\\{94ac6d29-73ce-41a6-809f-6363ba21b47e}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
-        "description": "Allow hybrid sleep (on battery)"
+        "values": "0 = Disable, 1 = Enable",
+        "description": "Allow hybrid sleep (on battery)",
+        "option_hints": {
+          "Enable": "Enable hybrid sleep (saves session state before hibernating)",
+          "Disable": "Disable hybrid sleep (use standard hibernation)"
+        }
       },
       {
         "name": "Allow Wake Timers (Plugged In)",
@@ -1043,10 +1101,16 @@
       {
         "name": "Allow Wake Timers (On Battery)",
         "hive": "HKEY_LOCAL_MACHINE",
-        "key": "Same as above",
+        "key": "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{ActivePowerPlan}\\{238C9FA8-0AAD-41ED-83F4-97BE242C8F20}\\{bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d}",
         "value": "DCSettingIndex",
         "type": "REG_DWORD",
-        "description": "Allow wake timers (on battery)"
+        "values": "0 = Disable, 1 = Enable, 2 = Important timers only",
+        "description": "Allow wake timers (on battery)",
+        "option_hints": {
+          "Disable": "Prevent system from waking automatically on battery",
+          "Enable": "Allow system to wake for any scheduled event on battery",
+          "Important timers only": "Allow system to wake only for important system events on battery"
+        }
       }
     ]
   },
@@ -1059,40 +1123,14 @@
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\webcam",
         "value": "Value",
         "type": "REG_SZ",
-        "values": "Allow = Allowed, Deny = Denied",
-        "description": "Allow apps to access camera"
+        "values": "Allow = Allow, Deny = Deny",
+        "description": "Allow apps to access camera",
+        "option_hints": {
+          "Allow": "Apps can access your camera when requested",
+          "Deny": "Apps cannot access your camera"
+        }
       },
       {
-        "name": "Microphone Access",
-        "hive": "HKEY_CURRENT_USER",
-        "key": "Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone",
-        "value": "Value",
-        "type": "REG_SZ",
-        "values": "Allow = Allowed, Deny = Denied",
-        "description": "Allow apps to access microphone"
-      },
-      {
-        "name": "Location Access",
-        "hive": "HKEY_CURRENT_USER",
-        "key": "Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location",
-        "value": "Value",
-        "type": "REG_SZ",
-        "values": "Allow = Allowed, Deny = Denied",
-        "description": "Allow apps to access location"
-      },
-      {
-        "name": "Notifications Access",
-        "hive": "HKEY_CURRENT_USER",
-        "key": "Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\userNotificationListener",
-        "value": "Value",
-        "type": "REG_SZ",
-        "values": "Allow = Allowed, Deny = Denied",
-        "description": "Allow apps to read notifications"
-      },
-      {
-        "name": "Account Info Access",
-        "hive": "HKEY_CURRENT_USER",
-        "key": "Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\userAccountInformation",
         "value": "Value",
         "type": "REG_SZ",
         "values": "Allow = Allowed, Deny = Denied",
@@ -1245,6 +1283,7 @@
         "name": "Publish Activity to Timeline",
         "hive": "HKEY_CURRENT_USER",
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Privacy",
+        "value": "PublishUserActivities",
         "type": "REG_DWORD",
         "values": "1 = Enable, 0 = Disable",
         "description": "Let Windows collect my activities from this PC"
@@ -1407,8 +1446,9 @@
         "name": "Mouse - Scroll Wheel Delta",
         "hive": "HKEY_CURRENT_USER",
         "key": "Control Panel\\Desktop",
+        "value": "WheelDelta",
         "type": "REG_SZ",
-        "description": "Characters to scroll horizontally per wheel notch"
+        "description": "Horizontal scroll amount per wheel notch"
       },
       {
         "name": "Mouse - Snap to Default Button",
@@ -1463,12 +1503,12 @@
         "description": "Mouse cursor scheme"
       },
       {
-        "name": "Mouse - Cursor Paths",
+        "name": "Mouse - Cursor Size",
         "hive": "HKEY_CURRENT_USER",
         "key": "Control Panel\\Cursors",
-        "values": "Arrow, Hand, Wait, AppStarting, etc.",
+        "value": "CursorSize",
         "type": "REG_SZ",
-        "description": "Paths to individual cursor files"
+        "description": "Cursor size in pixels"
       },
       {
         "name": "Keyboard - Repeat Delay",
@@ -2002,8 +2042,10 @@
         "name": "Captures - Max Recording Length",
         "hive": "HKEY_CURRENT_USER",
         "key": "Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
+        "value": "MaxRecordLength",
         "type": "REG_DWORD",
-        "description": "Maximum background recording length"
+        "values": "0-60 (seconds)",
+        "description": "Maximum background recording length in seconds"
       },
       {
         "name": "Captures - Audio Quality",

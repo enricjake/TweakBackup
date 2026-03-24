@@ -4,7 +4,10 @@ Registry handler for WinSet - reads and writes Windows Registry values.
 
 import winreg
 import re
+import logging
 from typing import Any, Optional, List
+
+logger = logging.getLogger(__name__)
 
 
 class RegistryHandler:
@@ -64,11 +67,12 @@ class RegistryHandler:
             if re.search(blocked, key_path, re.IGNORECASE):
                 raise ValueError(f"Access to blocked registry path: {key_path}")
         
-        # Check for suspicious characters
-        if not re.match(r'^[\w\\\- ]+$', key_path):
-            # Allow some additional characters in paths
-            if not re.match(r'^[a-zA-Z0-9\\\-_ ]+$', key_path):
-                raise ValueError(f"Invalid characters in key path: {key_path}")
+        # Check for suspicious characters.
+        # Allow alphanumerics, backslash, hyphens, underscores, spaces, curly
+        # braces (used in GUID-based power plan paths), dots, dollar signs, and
+        # @ signs which all appear in legitimate Windows registry paths.
+        if not re.match(r'^[a-zA-Z0-9\\\-_.{}$@ ]+$', key_path):
+            raise ValueError(f"Invalid characters in key path: {key_path}")
         
         return True
 
@@ -155,8 +159,12 @@ class RegistryHandler:
             value, _ = winreg.QueryValueEx(key, value_name)
             winreg.CloseKey(key)
             return value
-        except (FileNotFoundError, OSError, ValueError) as e:
-            print(f"Failed to read registry value '{value_name}': {e}")
+        except FileNotFoundError:
+            # Key or value simply doesn't exist on this system — not an error.
+            logger.debug("Registry value not found: %s", value_name)
+            return None
+        except (OSError, ValueError) as e:
+            logger.warning("Failed to read registry value '%s': %s", value_name, e)
             return None
 
     def write_value(

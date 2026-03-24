@@ -49,6 +49,7 @@ class MainWindow:
         self.manual_scrollable: Optional[ttk.Frame] = None
         self.manual_window_id: Optional[int] = None
         self.manual_vars: Dict[str, Any] = {}
+        self.expanded_setting_id: Optional[str] = None
         self.home_canvas: Optional[tk.Canvas] = None
         self.home_scrollable: Optional[ttk.Frame] = None
         self.home_window_id: Optional[int] = None
@@ -405,7 +406,8 @@ class MainWindow:
 
         self.manual_canvas = tk.Canvas(scroll_frame, highlightthickness=0, bg=self.bg_color)
         manual_scroll = ttk.Scrollbar(scroll_frame, orient="vertical", command=self.manual_canvas.yview)
-        self.manual_scrollable = ttk.Frame(self.manual_canvas)
+        # Use tk.Frame instead of ttk.Frame for proper background color
+        self.manual_scrollable = tk.Frame(self.manual_canvas, bg=self.bg_color)
 
         self.manual_scrollable.bind("<Configure>", lambda e: self.manual_canvas.configure(scrollregion=self.manual_canvas.bbox("all")))
         self.manual_window_id = self.manual_canvas.create_window((0, 0), window=self.manual_scrollable, anchor="nw")
@@ -574,6 +576,7 @@ class MainWindow:
 
     def refresh_manual_config(self):
         """Refresh the list of manual settings"""
+        print(f"DEBUG: refresh_manual_config called, categories: {len(self.setting_loader.get_categories())}")
         for widget in self.manual_scrollable.winfo_children():
             widget.destroy()
             
@@ -586,9 +589,10 @@ class MainWindow:
             filtered = [s for s in settings if search_query in s.name.lower() or search_query in (s.description or "").lower()]
             
             if not filtered: continue
+            print(f"DEBUG: Adding category {category.name} with {len(filtered)} settings")
                 
             # Category header (flat, modern; avoids LabelFrame shading)
-            category_container = ttk.Frame(self.manual_scrollable)
+            category_container = tk.Frame(self.manual_scrollable, bg=self.bg_color)
             category_container.pack(fill=tk.X, pady=(14, 6), padx=10)
 
             ttk.Label(
@@ -598,7 +602,7 @@ class MainWindow:
             ).pack(anchor="w")
             ttk.Separator(category_container, orient="horizontal").pack(fill=tk.X, pady=(6, 0))
 
-            category_frame = ttk.Frame(self.manual_scrollable)
+            category_frame = tk.Frame(self.manual_scrollable, bg=self.bg_color)
             category_frame.pack(fill=tk.X, pady=(6, 0), padx=10)
 
             for setting in filtered:
@@ -608,7 +612,7 @@ class MainWindow:
 
     def _create_setting_row(self, parent, setting):
         """Create a row for a setting with professional controls"""
-        row_frame = ttk.Frame(parent)
+        row_frame = tk.Frame(parent, bg=self.bg_color)
         row_frame.pack(fill=tk.X, pady=4)
         
         # Check current state
@@ -619,11 +623,11 @@ class MainWindow:
         is_expanded = (self.expanded_setting_id == setting_id)
         
         # Create expandable setting frame
-        setting_frame = ttk.Frame(row_frame)
+        setting_frame = tk.Frame(row_frame, bg=self.bg_color)
         setting_frame.pack(fill=tk.X)
         
         # Header with triangle and name
-        header_frame = ttk.Frame(setting_frame)
+        header_frame = tk.Frame(setting_frame, bg=self.bg_color)
         header_frame.pack(fill=tk.X)
         
         
@@ -636,6 +640,12 @@ class MainWindow:
         name_label = ttk.Label(header_frame, text=setting.name, style="Setting.TLabel", 
                             cursor="hand2")
         name_label.pack(side=tk.LEFT)
+        
+        # Current value display (user-friendly)
+        friendly_label = self._get_friendly_label_for_value(setting, current_val)
+        current_value_label = ttk.Label(header_frame, text=f"Current: {friendly_label}", 
+                                      style="Description.TLabel", foreground=self.accent_color)
+        current_value_label.pack(side=tk.LEFT, padx=(10, 0))
         
         # Bind click event to toggle expansion
         for widget in [triangle_label, name_label]:
@@ -663,12 +673,24 @@ class MainWindow:
         if setting.description:
             ttk.Label(options_frame, text=setting.description, style="Description.TLabel", wraplength=700, justify=tk.LEFT).pack(anchor="w", pady=(8, 0))
 
+        # Add system settings link for complex settings
+        if self._should_show_system_settings_link(setting):
+            link_frame = ttk.Frame(options_frame)
+            link_frame.pack(anchor="w", pady=(8, 0))
+            
+            link_btn = self._create_system_settings_link(link_frame, setting)
+            link_btn.pack(side=tk.LEFT)
+            
+            # Add tooltip explaining the link
+            self._create_tooltip(link_btn, f"Open Windows Settings to manage {setting.name}")
+
         self.manual_row_widgets[setting_id] = {
             "setting": setting,
             "triangle": triangle_label,
             "options_frame": options_frame,
             "buttons": buttons,
             "slider_var": slider_var,
+            "current_value_label": current_value_label,  # Store reference for updates
         }
 
     def _should_use_slider(self, setting, options):
@@ -676,16 +698,63 @@ class MainWindow:
         if getattr(setting, "is_range", False):
             return True
 
+        # Exclude specific settings from slider treatment - these should use buttons
+        exclude_from_slider = [
+            "wallpaperstyle",  # Wallpaper Style - discrete options, not a range
+            "taskbarglomlevel",  # Taskbar button grouping
+            "mmtaskbarmode",  # Multi-monitor taskbar
+            "searchboxtaskbarmode",  # Search box appearance
+            "launchto",  # File Explorer default location
+            "autoscroll",  # Auto-scroll in IE/Edge
+            "dragfullwindows",  # Drag full windows
+            "listviewshadow",  # Show shadows under windows
+            "showinfotip",  # Show pop-up descriptions
+            "taskbartransparency",  # Taskbar transparency
+            "enabletransparency",  # General transparency
+            "colorprevalence",  # Accent color settings
+            "settings",  # REG_BINARY settings like taskbar position
+        ]
+        
+        setting_name_lower = str(setting.value_name).lower()
+        setting_display_name_lower = str(setting.name).lower()
+        
+        if any(term in setting_name_lower for term in exclude_from_slider):
+            return False
+
         # Only use sliders for real numeric ranges (e.g. "1-20") or known range settings.
-        values_str = getattr(setting, "values", None)
-        if isinstance(values_str, str):
+        values = getattr(setting, "values", None)
+        
+        # If values is a dictionary, check if it's a range (numeric keys)
+        if isinstance(values, dict):
+            # Check if all keys are numeric (indicating a range)
+            try:
+                keys = [int(k) for k in values.keys()]
+                # Don't use slider for small discrete option sets (<= 5 options)
+                if len(keys) <= 5:
+                    return False
+                # More than 5 numeric options suggest a range/slider
+                if len(keys) > 5:
+                    return True
+            except ValueError:
+                pass
+            return False
+        
+        # For string values, check for range patterns
+        if isinstance(values, str):
             # Match things like "1-20" or "0 - 100" or "400 (fast) - 900 (slow)"
             import re
-            if re.search(r"\b\d+\s*.*?-.*?\s*\d+\b", values_str):
+            if re.search(r"\b\d+\s*.*?-.*?\s*\d+\b", values):
                 return True
 
-        # Known registry-backed ranges
-        if str(setting.value_name).lower() in {"mousesensitivity"}:
+        # Known registry-backed ranges and specific settings
+        # Mouse sensitivity and speed settings
+        if any(term in setting_name_lower for term in ["mousesensitivity", "mousespeed"]):
+            return True
+        if "mouse speed" in setting_display_name_lower or "mouse sensitivity" in setting_display_name_lower:
+            return True
+            
+        # Double-click speed
+        if "doubleclickspeed" in setting_name_lower or "double-click speed" in setting_display_name_lower:
             return True
 
         return False
@@ -713,8 +782,21 @@ class MainWindow:
             from_val = int(m.group(1))
             to_val = int(m.group(2))
         else:
-            from_val = 0
-            to_val = 100
+            # Default ranges for specific settings
+            setting_name_lower = str(setting.value_name).lower()
+            setting_display_name_lower = str(setting.name).lower()
+            
+            if "mousesensitivity" in setting_name_lower or "mouse sensitivity" in setting_display_name_lower:
+                from_val, to_val = 1, 20
+            elif "mousespeed" in setting_name_lower or "mouse speed" in setting_display_name_lower:
+                if "enhance pointer precision" in setting_display_name_lower:
+                    from_val, to_val = 1, 20
+                else:
+                    from_val, to_val = 0, 2  # For basic mouse speed (Slow/Medium/Fast)
+            elif "doubleclickspeed" in setting_name_lower or "double-click speed" in setting_display_name_lower:
+                from_val, to_val = 200, 600  # Typical double-click speed range
+            else:
+                from_val, to_val = 0, 100
 
         # Create slider
         try:
@@ -723,17 +805,36 @@ class MainWindow:
             current_num = float(from_val)
 
         slider_var = tk.DoubleVar(value=current_num)
+        
+        # Current value label
+        value_label = ttk.Label(control_frame, text=f"Current: {int(current_num)}", style="Description.TLabel")
+        value_label.pack(side=tk.LEFT, padx=(10, 5))
+        
+        # Update value label when slider moves
+        def update_label(*args):
+            value_label.config(text=f"Current: {int(slider_var.get())}")
+        
+        slider_var.trace('w', update_label)
+        
         slider = ttk.Scale(
             control_frame,
             from_=from_val,
             to=to_val,
             variable=slider_var,
             orient=tk.HORIZONTAL,
-            length=300,
+            length=250,
         )
 
-        if from_val == 1 and to_val == 20 and str(setting.value_name).lower() in {"mousesensitivity"}:
-            ttk.Label(control_frame, text="(Low ← → High)", style="Description.TLabel").pack(side=tk.LEFT, padx=(10, 0))
+        # Add descriptive labels for specific settings
+        setting_display_name_lower = str(setting.name).lower()
+        if from_val == 1 and to_val == 20 and ("mousesensitivity" in str(setting.value_name).lower() or "enhance pointer precision" in setting_display_name_lower):
+            ttk.Label(control_frame, text="(Low ← → High)", style="Description.TLabel").pack(side=tk.LEFT, padx=(5, 0))
+        elif from_val == 0 and to_val == 2 and "mouse speed" in setting_display_name_lower:
+            ttk.Label(control_frame, text="(Slow ← → Fast)", style="Description.TLabel").pack(side=tk.LEFT, padx=(5, 0))
+        elif "double-click speed" in setting_display_name_lower:
+            ttk.Label(control_frame, text="(Slow ← → Fast)", style="Description.TLabel").pack(side=tk.LEFT, padx=(5, 0))
+        elif "TaskbarAl" in str(setting.value_name):
+            ttk.Label(control_frame, text="(Left ← → Center)", style="Description.TLabel").pack(side=tk.LEFT, padx=(5, 0))
         
         slider.pack(side=tk.LEFT, padx=(0, 10))
         
@@ -743,6 +844,632 @@ class MainWindow:
             slider.bind("<ButtonRelease-1>", lambda e, sid=setting_id, s=setting, v=slider_var: self._apply_slider_value(sid, s, v))
 
         return slider_var
+
+    def _parse_binary_setting_value(self, setting, current_val):
+        """Parse REG_BINARY settings to extract meaningful values"""
+        if not current_val:
+            return None
+        
+        try:
+            # Convert binary data to bytes if it's a string
+            if isinstance(current_val, str):
+                import binascii
+                current_val = binascii.unhexlify(current_val.replace(' ', ''))
+            
+            # Taskbar position parsing (StuckRects3)
+            if "StuckRects3" in setting.key_path:
+                return self._parse_taskbar_binary(current_val)
+            
+            # Visual effects parsing (UserPreferencesMask)
+            if "UserPreferencesMask" in str(setting.key_path):
+                return self._parse_visual_effects_binary(current_val)
+            
+            # File Explorer view settings
+            if "Explorer\\Streams" in setting.key_path:
+                return self._parse_explorer_view_binary(current_val)
+            
+            # Start Menu layout
+            if "CloudStore" in setting.key_path and "start.layout" in setting.key_path:
+                return self._parse_start_menu_layout_binary(current_val)
+            
+            # Pinned taskbar apps
+            if "Explorer\\Taskband" in setting.key_path:
+                return self._parse_pinned_apps_binary(current_val, "taskbar")
+            
+            # Pinned Start Menu items
+            if "Explorer\\StartPage2" in setting.key_path:
+                return self._parse_pinned_apps_binary(current_val, "startmenu")
+            
+        except Exception:
+            pass  # Return None if parsing fails
+        
+        return None
+
+    def _parse_taskbar_binary(self, binary_data):
+        """Parse taskbar binary data to extract position and auto-hide settings"""
+        if len(binary_data) < 20:
+            return None
+        
+        try:
+            # Taskbar position is typically at offset 12 in the binary data
+            # 0 = Bottom, 1 = Left, 2 = Top, 3 = Right
+            position = binary_data[12] if len(binary_data) > 12 else 0
+            position_map = {0: "Bottom", 1: "Left", 2: "Top", 3: "Right"}
+            
+            # Auto-hide is typically at offset 8
+            # 0 = Auto-hide enabled, 2 = Auto-hide disabled
+            auto_hide = binary_data[8] if len(binary_data) > 8 else 2
+            auto_hide_map = {0: "Enable", 2: "Disable"}
+            
+            # Determine which setting this is based on the setting name
+            setting_name = str(getattr(self, '_current_setting_name', '')).lower()
+            
+            if 'location' in setting_name or 'position' in setting_name:
+                return position_map.get(position, "Bottom")
+            elif 'auto-hide' in setting_name or 'autohide' in setting_name:
+                return auto_hide_map.get(auto_hide, "Disable")
+                
+        except Exception:
+            pass
+        
+        return None
+
+    def _parse_visual_effects_binary(self, binary_data):
+        """Parse visual effects binary data to extract animation settings"""
+        if len(binary_data) < 8:
+            return None
+        
+        try:
+            # Visual effects are typically controlled by bits in the binary data
+            # This is a simplified approach - actual bit positions may vary
+            byte_3 = binary_data[3] if len(binary_data) > 3 else 0
+            
+            # Check specific bits for common visual effects
+            animations_enabled = (byte_3 & 0x02) == 0  # Bit 1 controls animations
+            controls_animated = (byte_3 & 0x04) == 0  # Bit 2 controls control animations
+            
+            setting_name = str(getattr(self, '_current_setting_name', '')).lower()
+            
+            if 'animation' in setting_name:
+                return "Enable" if not animations_enabled else "Disable"
+            elif 'control' in setting_name:
+                return "Enable" if not controls_animated else "Disable"
+                
+        except Exception:
+            pass
+        
+        return None
+
+    def _parse_explorer_view_binary(self, binary_data):
+        """Parse File Explorer view settings binary data"""
+        if len(binary_data) < 10:
+            return None
+        
+        try:
+            # This is a simplified parser for Explorer view settings
+            # The actual structure is complex, so we'll provide a descriptive result
+            return "Custom view settings"
+        except Exception:
+            pass
+        
+        return None
+
+    def _parse_start_menu_layout_binary(self, binary_data):
+        """Parse Start Menu layout binary data"""
+        if len(binary_data) < 10:
+            return None
+        
+        try:
+            # Start Menu layout is complex - provide descriptive result
+            return "Custom Start Menu layout"
+        except Exception:
+            pass
+        
+        return None
+
+    def _parse_pinned_apps_binary(self, binary_data, app_type):
+        """Parse pinned apps binary data for taskbar or Start Menu"""
+        if len(binary_data) < 10:
+            return None
+        
+        try:
+            # Pinned apps data is complex - count approximate number of pinned items
+            # This is a simplified approach
+            if app_type == "taskbar":
+                return "Pinned taskbar apps configured"
+            else:
+                return "Pinned Start Menu items configured"
+        except Exception:
+            pass
+        
+        return None
+
+    def _parse_multi_sz_setting_value(self, setting, current_val):
+        """Parse REG_MULTI_SZ settings like Virtual Memory Size"""
+        if not current_val:
+            return "Not configured"
+        
+        try:
+            # Handle Virtual Memory Size specifically
+            if "Virtual Memory" in setting.name or "PagingFiles" in setting.value_name:
+                return self._parse_virtual_memory_config(current_val)
+            
+            # For other multi-string values, join them
+            if isinstance(current_val, (list, tuple)):
+                return ", ".join(str(v) for v in current_val if v)
+            elif isinstance(current_val, str):
+                # Split on null characters if it's a single string with multiple values
+                parts = current_val.split('\x00')
+                return ", ".join(part for part in parts if part.strip())
+                
+        except Exception:
+            pass
+        
+        return str(current_val)
+
+    def _parse_virtual_memory_config(self, current_val):
+        """Parse virtual memory configuration from registry"""
+        try:
+            if isinstance(current_val, str):
+                # Format: "C:\pagefile.sys 1024 4096"
+                parts = current_val.split()
+                if len(parts) >= 3:
+                    path = parts[0]
+                    initial_size = parts[1]
+                    max_size = parts[2]
+                    
+                    # Convert to MB if needed
+                    try:
+                        initial_mb = int(initial_size)
+                        max_mb = int(max_size)
+                        
+                        if initial_mb >= 1024:
+                            initial_display = f"{initial_mb // 1024} GB"
+                        else:
+                            initial_display = f"{initial_mb} MB"
+                            
+                        if max_mb >= 1024:
+                            max_display = f"{max_mb // 1024} GB"
+                        else:
+                            max_display = f"{max_mb} MB"
+                        
+                        return f"{initial_display} - {max_display}"
+                    except ValueError:
+                        return f"{initial_size} - {max_size}"
+                        
+            elif isinstance(current_val, (list, tuple)):
+                # Handle multiple pagefiles
+                configs = []
+                for config in current_val:
+                    if config.strip():
+                        parts = config.split()
+                        if len(parts) >= 3:
+                            path = parts[0]
+                            initial_size = parts[1]
+                            max_size = parts[2]
+                            configs.append(f"{path}: {initial_size}-{max_size}")
+                return "; ".join(configs) if configs else "Not configured"
+                
+        except Exception:
+            pass
+        
+        return "Custom configuration"
+
+    def _get_option_hint(self, setting, option_name):
+        """Get hint text for a specific option"""
+        if hasattr(setting, 'option_hints') and setting.option_hints:
+            return setting.option_hints.get(option_name, "")
+        return ""
+
+    def _get_friendly_label_for_value(self, setting, current_val):
+        """Get user-friendly label for a current registry value"""
+        if current_val is None:
+            return "Unknown"
+        
+        # Handle REG_BINARY settings specially
+        if setting.value_type == "REG_BINARY":
+            # Store setting name for binary parsing
+            self._current_setting_name = setting.name
+            parsed_value = self._parse_binary_setting_value(setting, current_val)
+            if parsed_value:
+                return parsed_value
+        
+        # Handle REG_MULTI_SZ settings specially (like Virtual Memory)
+        if setting.value_type == "REG_MULTI_SZ":
+            parsed_value = self._parse_multi_sz_setting_value(setting, current_val)
+            if parsed_value:
+                return parsed_value
+        
+        # Parse options to find the label for this value
+        options = self._parse_setting_options(setting, current_val)
+        for label, value in options.items():
+            if str(current_val) == str(value):
+                return label
+        
+        # If no friendly label found, return the raw value
+        return str(current_val)
+
+    def _launch_system_settings(self, setting):
+        """Launch the appropriate Windows system settings for this setting"""
+        import subprocess
+
+        # ------------------------------------------------------------------ #
+        # Full per-setting deep-link map.  All names match settings.json.      #
+        # Fallback logic (category, then generic) follows below.              #
+        # ------------------------------------------------------------------ #
+        SETTINGS_MAP: dict[str, str] = {
+            # ── System Appearance ──────────────────────────────────────────
+            "Desktop Wallpaper":                        "ms-settings:personalization-background",
+            "Wallpaper Style (Stretch/Fill/Fit)":       "ms-settings:personalization-background",
+            "Tile Wallpaper":                           "ms-settings:personalization-background",
+            "App Theme (Light/Dark)":                   "ms-settings:personalization-colors",
+            "System Theme (Light/Dark)":                "ms-settings:personalization-colors",
+            "Accent Color":                             "ms-settings:personalization-colors",
+            "Accent Color (Auto-Selected)":             "ms-settings:personalization-colors",
+            "Accent Color on Title Bars":               "ms-settings:personalization-colors",
+            "Show Accent on Start/Taskbar":             "ms-settings:personalization-colors",
+            "Transparency Effects":                     "ms-settings:personalization-colors",
+            "Taskbar Transparency":                     "ms-settings:personalization-colors",
+            "Desktop Icon Visibility - This PC":        "ms-settings:themes",
+            "Desktop Icon Visibility - Network":        "ms-settings:themes",
+            "Desktop Icon Visibility - Recycle Bin":    "ms-settings:themes",
+            "Desktop Icon Visibility - User's Files":   "ms-settings:themes",
+            "Desktop Icon Size":                        "ms-settings:display",
+            "Desktop Icon Spacing (Horizontal)":        "ms-settings:display",
+            "Desktop Icon Spacing (Vertical)":          "ms-settings:display",
+            "Font Smoothing (ClearType)":               "ms-settings:display",
+            "Font Smoothing Type":                      "ms-settings:display",
+            "Visual Effects - Animations":              "ms-settings:display-advancedgraphics",
+            "Show Shadows Under Windows":               "ms-settings:display-advancedgraphics",
+            "Show Shadows Under Mouse":                 "ms-settings:display-advancedgraphics",
+
+            # ── File Explorer Settings ─────────────────────────────────────
+            # Explorer folder-options have no ms-settings URI; open via shell
+            "Hidden Files":                             "__explorer_options__",
+            "File Extensions":                         "__explorer_options__",
+            "Protected Operating System Files":         "__explorer_options__",
+            "Empty Drives":                             "__explorer_options__",
+            "Navigation Pane - Show All Folders":       "__explorer_options__",
+            "Navigation Pane - Expand to Open Folder":  "__explorer_options__",
+            "Quick Access - Show Recent Files":         "ms-settings:privacy-general",
+            "Quick Access - Show Frequent Folders":     "ms-settings:privacy-general",
+            "File Explorer - Open to Quick Access":     "__explorer_options__",
+            "Check Boxes to Select Items":              "__explorer_options__",
+            "Item Check Boxes":                         "__explorer_options__",
+            "File Explorer - View Type":                "__explorer_options__",
+            "Folder Merge Conflicts":                   "__explorer_options__",
+            "Sharing Wizard":                           "ms-settings:network-shareadvanced",
+            "Recycle Bin - Delete Confirmation":        "__explorer_options__",
+            "Recycle Bin - Maximum Size":               "__explorer_options__",
+            "Recycle Bin - Files Removed Immediately":  "__explorer_options__",
+            "Folder Tips":                              "__explorer_options__",
+            "Sync Provider Notifications":              "ms-settings:privacy-general",
+            "File Explorer - Display Size Info":        "__explorer_options__",
+            "Encrypted/Compressed Files in Color":      "__explorer_options__",
+            "Always Show Icons, Never Thumbnails":      "__explorer_options__",
+            "Display File Icon on Thumbnails":          "__explorer_options__",
+            "Separate Process for Folder Windows":      "__explorer_options__",
+
+            # ── Taskbar & Start Menu ───────────────────────────────────────
+            "Taskbar Alignment":                        "ms-settings:taskbar",
+            "Taskbar Size (Small/Large Icons)":         "ms-settings:taskbar",
+            "Taskbar Location on Screen":               "ms-settings:taskbar",
+            "Auto-Hide Taskbar":                        "ms-settings:taskbar",
+            "Lock Taskbar":                             "ms-settings:taskbar",
+            "Taskbar Badges":                           "ms-settings:taskbar",
+            "Taskbar Corner Overflow":                  "ms-settings:taskbar",
+            "Taskbar Widgets":                          "ms-settings:taskbar",
+            "Taskbar Chat Icon":                        "ms-settings:taskbar",
+            "Taskbar Task View Button":                 "ms-settings:taskbar",
+            "Taskbar People Button":                    "ms-settings:taskbar",
+            "Taskbar Search Box":                       "ms-settings:taskbar",
+            "Taskbar Corner Icons - Pen Menu":          "ms-settings:taskbar",
+            "Taskbar Corner Icons - Touch Keyboard":    "ms-settings:taskbar",
+            "Taskbar Corner Icons - Virtual Touchpad":  "ms-settings:taskbar",
+            "Combine Taskbar Buttons":                  "ms-settings:taskbar",
+            "Multiple Displays - Show Taskbar on All Displays":      "ms-settings:taskbar",
+            "Multiple Displays - Where to Show Buttons":             "ms-settings:taskbar",
+            "Multiple Displays - Combine Buttons on Other Taskbars": "ms-settings:taskbar",
+            "Start Menu - Show Recently Added Apps":    "ms-settings:personalization-start",
+            "Start Menu - Show Most Used Apps":         "ms-settings:personalization-start",
+            "Start Menu - Show Suggestions":            "ms-settings:personalization-start",
+            "Start Menu - Show Recently Opened Items":  "ms-settings:personalization-start",
+            "Start Menu - Size":                        "ms-settings:personalization-start",
+            "Start Menu Layout XML":                    "ms-settings:personalization-start",
+            "Pinned Taskbar Apps":                      "ms-settings:taskbar",
+            "Pinned Start Menu Apps":                   "ms-settings:personalization-start",
+
+            # ── Power Settings ─────────────────────────────────────────────
+            "Active Power Plan":                        "ms-settings:powersleep",
+            "Monitor Timeout (Plugged In)":             "ms-settings:powersleep",
+            "Monitor Timeout (On Battery)":             "ms-settings:powersleep",
+            "Sleep Timeout (Plugged In)":               "ms-settings:powersleep",
+            "Sleep Timeout (On Battery)":               "ms-settings:powersleep",
+            "Hibernate After (Plugged In)":             "ms-settings:powersleep",
+            "Hibernate After (On Battery)":             "ms-settings:powersleep",
+            "Lid Close Action (Plugged In)":            "ms-settings:powersleep",
+            "Lid Close Action (On Battery)":            "ms-settings:powersleep",
+            "Power Button Action (Plugged In)":         "ms-settings:powersleep",
+            "Power Button Action (On Battery)":         "ms-settings:powersleep",
+            "Sleep Button Action (Plugged In)":         "ms-settings:powersleep",
+            "Sleep Button Action (On Battery)":         "ms-settings:powersleep",
+            "Fast Startup":                             "ms-settings:powersleep",
+            "Hibernate":                                "ms-settings:powersleep",
+            "USB Selective Suspend":                    "ms-settings:powersleep",
+            "Processor Power (Minimum, Plugged In)":    "ms-settings:powersleep",
+            "Processor Power (Minimum, On Battery)":    "ms-settings:powersleep",
+            "Processor Power (Maximum, Plugged In)":    "ms-settings:powersleep",
+            "Processor Power (Maximum, On Battery)":    "ms-settings:powersleep",
+            "Processor Cooling Policy":                 "ms-settings:powersleep",
+            "Screen Brightness (Plugged In)":           "ms-settings:display",
+            "Screen Brightness (On Battery)":           "ms-settings:display",
+            "Adaptive Brightness":                      "ms-settings:display",
+            "Wireless Adapter Power Mode":              "ms-settings:powersleep",
+            "PCI Express Link State":                   "ms-settings:powersleep",
+            "Battery Low Level":                        "ms-settings:batterysaver",
+            "Battery Critical Level":                   "ms-settings:batterysaver",
+            "Battery Low Notification":                 "ms-settings:batterysaver",
+            "Battery Critical Action":                  "ms-settings:batterysaver",
+            "Battery Saver":                            "ms-settings:batterysaver",
+            "Battery Saver Threshold":                  "ms-settings:batterysaver",
+            "Allow Wake Timers (Plugged In)":           "ms-settings:powersleep",
+            "Allow Wake Timers (On Battery)":           "ms-settings:powersleep",
+            "Hard Disk Timeout (Plugged In)":           "ms-settings:powersleep",
+            "Hard Disk Timeout (On Battery)":           "ms-settings:powersleep",
+            "Sleep State":                              "ms-settings:powersleep",
+            "Hybrid Sleep (Plugged In)":                "ms-settings:powersleep",
+            "Hybrid Sleep (On Battery)":                "ms-settings:powersleep",
+            "Video Playback (Plugged In)":              "ms-settings:powersleep",
+            "Video Playback (On Battery)":              "ms-settings:powersleep",
+            "Network Connectivity in Standby":          "ms-settings:powersleep",
+            "Energy Saver Brightness Reduction":        "ms-settings:batterysaver",
+
+            # ── Privacy Options ────────────────────────────────────────────
+            "Advertising ID":                           "ms-settings:privacy-general",
+            "Tailored Experiences":                     "ms-settings:privacy-general",
+            "Diagnostics & Feedback Level":             "ms-settings:privacy-feedback",
+            "Feedback Frequency":                       "ms-settings:privacy-feedback",
+            "Inking & Typing Personalization":          "ms-settings:privacy-speechtyping",
+            "Speech Recognition":                       "ms-settings:privacy-speech",
+            "Timeline / Activity History":              "ms-settings:privacy-activityhistory",
+            "Activity History - Enabled":               "ms-settings:privacy-activityhistory",
+            "Publish User Activities":                  "ms-settings:privacy-activityhistory",
+            "Upload User Activities":                   "ms-settings:privacy-activityhistory",
+            "Location Services":                        "ms-settings:privacy-location",
+            "Location Sync":                            "ms-settings:privacy-location",
+            "Camera Access":                            "ms-settings:privacy-webcam",
+            "Microphone Access":                        "ms-settings:privacy-microphone",
+            "Notifications Access":                     "ms-settings:privacy-notifications",
+            "Account Info Access":                      "ms-settings:privacy-accountinfo",
+            "Contacts Access":                          "ms-settings:privacy-contacts",
+            "Calendar Access":                          "ms-settings:privacy-calendar",
+            "Call History Access":                      "ms-settings:privacy-callhistory",
+            "Email Access":                             "ms-settings:privacy-email",
+            "Tasks Access":                             "ms-settings:privacy-tasks",
+            "Messaging Access":                         "ms-settings:privacy-messaging",
+            "Radios Access":                            "ms-settings:privacy-radios",
+            "Background Apps":                          "ms-settings:privacy-backgroundapps",
+            "App Diagnostics":                          "ms-settings:privacy-appdiagnostics",
+            "Automatic File Downloads":                 "ms-settings:privacy-automaticfiledownloads",
+            "Documents Library Access":                 "ms-settings:privacy-documents",
+            "Pictures Library Access":                  "ms-settings:privacy-pictures",
+            "Videos Library Access":                    "ms-settings:privacy-videos",
+            "Network Access":                           "ms-settings:privacy-customdevices",
+            "Clipboard History":                        "ms-settings:clipboard",
+            "Cloud Clipboard Sync":                     "ms-settings:clipboard",
+            "Find My Device":                           "ms-settings:findmydevice",
+
+            # ── Keyboard & Mouse ───────────────────────────────────────────
+            "Mouse - Primary Button":                   "ms-settings:mousetouchpad",
+            "Mouse - Double-Click Speed":               "ms-settings:mousetouchpad",
+            "Mouse - Double-Click Height":              "ms-settings:mousetouchpad",
+            "Mouse - Double-Click Width":               "ms-settings:mousetouchpad",
+            "Mouse - Scroll Lines":                     "ms-settings:mousetouchpad",
+            "Mouse - Scroll Wheel Delta":               "ms-settings:mousetouchpad",
+            "Mouse - Snap to Default Button":           "ms-settings:mousetouchpad",
+            "Mouse - Mouse Speed":                      "ms-settings:mousetouchpad",
+            "Mouse - Mouse Threshold 1":                "ms-settings:mousetouchpad",
+            "Mouse - Mouse Threshold 2":                "ms-settings:mousetouchpad",
+            "Mouse - Enhance Pointer Precision":        "ms-settings:mousetouchpad",
+            "Mouse - Cursor Scheme":                    "ms-settings:easeofaccess-cursorandpointersize",
+            "Mouse - Cursor Size":                      "ms-settings:easeofaccess-cursorandpointersize",
+            "Keyboard - Repeat Delay":                  "ms-settings:keyboard",
+            "Keyboard - Repeat Rate":                   "ms-settings:keyboard",
+            "Touchpad - Tap to Click":                  "ms-settings:devices-touchpad",
+            "Touchpad - Double-Tap to Drag":            "ms-settings:devices-touchpad",
+            "Touchpad - Right-Click Zone":              "ms-settings:devices-touchpad",
+            "Touchpad - Scrolling Direction":           "ms-settings:devices-touchpad",
+            "Touchpad - Sensitivity":                   "ms-settings:devices-touchpad",
+            "Touchpad - Three-Finger Gestures":         "ms-settings:devices-touchpad",
+            "Touchpad - Four-Finger Gestures":          "ms-settings:devices-touchpad",
+            "Touchpad - Swipe Gestures":                "ms-settings:devices-touchpad",
+
+            # ── System & Performance / Accessibility / Gaming ──────────────
+            # Regional & Language
+            "Date Format - Short Date":                 "ms-settings:dateandtime",
+            "Date Format - Long Date":                  "ms-settings:dateandtime",
+            "Time Format":                              "ms-settings:dateandtime",
+            "Time Format with AM/PM":                   "ms-settings:dateandtime",
+            "AM Designator":                            "ms-settings:dateandtime",
+            "PM Designator":                            "ms-settings:dateandtime",
+            "First Day of Week":                        "ms-settings:dateandtime",
+            "Decimal Symbol":                           "ms-settings:regionlanguage",
+            "Thousand Separator":                       "ms-settings:regionlanguage",
+            "List Separator":                           "ms-settings:regionlanguage",
+            "Currency Symbol":                          "ms-settings:regionlanguage",
+            "Currency Positive Format":                 "ms-settings:regionlanguage",
+            "Currency Negative Format":                 "ms-settings:regionlanguage",
+            "Number of Decimal Digits":                 "ms-settings:regionlanguage",
+            "Leading Zeros":                            "ms-settings:regionlanguage",
+            "Measurement System":                       "ms-settings:regionlanguage",
+            "Time Zone":                                "ms-settings:dateandtime",
+            "Daylight Saving Time Enabled":             "ms-settings:dateandtime",
+            "Country/Region":                           "ms-settings:regionlanguage",
+
+            # Accessibility - Narrator
+            "Narrator - Auto Start":                    "ms-settings:easeofaccess-narrator",
+            "Narrator - Voice":                         "ms-settings:easeofaccess-narrator",
+            "Narrator - Speed":                         "ms-settings:easeofaccess-narrator",
+            "Narrator - Volume":                        "ms-settings:easeofaccess-narrator",
+
+            # Accessibility - Magnifier
+            "Magnifier - Zoom Level":                   "ms-settings:easeofaccess-magnifier",
+            "Magnifier - Follow Focus":                 "ms-settings:easeofaccess-magnifier",
+            "Magnifier - Follow Mouse":                 "ms-settings:easeofaccess-magnifier",
+            "Magnifier - Follow Caret":                 "ms-settings:easeofaccess-magnifier",
+            "Magnifier - Docked Mode":                  "ms-settings:easeofaccess-magnifier",
+
+            # Accessibility - High Contrast / Keys
+            "High Contrast - Enable":                   "ms-settings:easeofaccess-highcontrast",
+            "High Contrast - Theme":                    "ms-settings:easeofaccess-highcontrast",
+            "Sticky Keys":                              "ms-settings:easeofaccess-keyboard",
+            "Filter Keys":                              "ms-settings:easeofaccess-keyboard",
+            "Toggle Keys":                              "ms-settings:easeofaccess-keyboard",
+            "Mouse Keys":                               "ms-settings:easeofaccess-mouse",
+            "Mouse Keys - Speed":                       "ms-settings:easeofaccess-mouse",
+            "Mouse Keys - Acceleration":                "ms-settings:easeofaccess-mouse",
+
+            # Accessibility - Closed Captions
+            "Closed Captions":                          "ms-settings:easeofaccess-closedcaptioning",
+            "Caption Color":                            "ms-settings:easeofaccess-closedcaptioning",
+            "Caption Background Color":                 "ms-settings:easeofaccess-closedcaptioning",
+            "Caption Font Size":                        "ms-settings:easeofaccess-closedcaptioning",
+            "Visual Notifications for Sound":           "ms-settings:easeofaccess-otheroptions",
+            "Text Cursor - Thickness":                  "ms-settings:easeofaccess-cursor",
+            "Text Cursor - Blink Rate":                 "ms-settings:easeofaccess-cursor",
+
+            # Gaming
+            "Game Mode":                                "ms-settings:gaming-gamemode",
+            "Game Bar - Enable":                        "ms-settings:gaming-gamebar",
+            "Game Bar - Shortcut":                      "ms-settings:gaming-gamebar",
+            "Game Bar - Controller Shortcut":           "ms-settings:gaming-gamebar",
+            "Captures - Record in Background":          "ms-settings:gaming-gamedvr",
+            "Captures - Max Recording Length":          "ms-settings:gaming-gamedvr",
+            "Captures - Audio Quality":                 "ms-settings:gaming-gamedvr",
+            "Captures - Video Quality":                 "ms-settings:gaming-gamedvr",
+            "Captures - Framerate":                     "ms-settings:gaming-gamedvr",
+            "Captures - Save Location":                 "ms-settings:gaming-gamedvr",
+            "TruePlay (Anti-Cheat)":                    "ms-settings:gaming-trueplay",
+
+            # System & Performance
+            "Visual Effects - Adjust for Best Performance": "ms-settings:display-advancedgraphics",
+            "Show Windows Contents While Dragging":     "ms-settings:display-advancedgraphics",
+            "Smooth Edges of Screen Fonts":             "ms-settings:display-advancedgraphics",
+            "Animate Controls and Elements":            "ms-settings:display-advancedgraphics",
+            "Show Thumbnails Instead of Icons":         "ms-settings:display-advancedgraphics",
+            "Save Taskbar Thumbnail Previews":          "ms-settings:taskbar",
+            "Virtual Memory Size":                      "ms-settings:about",
+            "Disable Pagefile":                         "ms-settings:about",
+            "Large System Cache":                       "ms-settings:about",
+            "Processor Scheduling - Programs/Background": "ms-settings:about",
+            "DEP (Data Execution Prevention)":          "ms-settings:about",
+        }
+
+        # ── Category-level fallbacks ───────────────────────────────────────
+        from src.models.setting import SettingCategory
+        CATEGORY_FALLBACK: dict = {
+            SettingCategory.APPEARANCE:     "ms-settings:personalization",
+            SettingCategory.FILE_EXPLORER:  "__explorer_options__",
+            SettingCategory.TASKBAR:        "ms-settings:taskbar",
+            SettingCategory.POWER:          "ms-settings:powersleep",
+            SettingCategory.PRIVACY:        "ms-settings:privacy",
+            SettingCategory.KEYBOARD:       "ms-settings:mousetouchpad",
+            SettingCategory.SYSTEM:         "ms-settings:system",
+            SettingCategory.NETWORK:        "ms-settings:network",
+        }
+
+        setting_name = setting.name
+        settings_uri: str | None = None
+
+        # 1. Exact name match
+        if setting_name in SETTINGS_MAP:
+            settings_uri = SETTINGS_MAP[setting_name]
+        else:
+            # 2. Partial / substring match (case-insensitive)
+            name_lower = setting_name.lower()
+            for key, uri in SETTINGS_MAP.items():
+                if key.lower() in name_lower or name_lower in key.lower():
+                    settings_uri = uri
+                    break
+
+        # 3. Category fallback
+        if not settings_uri:
+            settings_uri = CATEGORY_FALLBACK.get(
+                getattr(setting, "category", None), "ms-settings:"
+            )
+
+        # ── Special case: File Explorer Folder Options ─────────────────────
+        if settings_uri == "__explorer_options__":
+            # Open Explorer Folder Options dialog directly (no ms-settings page)
+            try:
+                import subprocess as _sp
+                _sp.Popen(
+                    ["rundll32.exe", "shell32.dll,Options_RunDLL", "0"],
+                    shell=False
+                )
+            except Exception:
+                pass
+            return
+
+        # ── Open the ms-settings URI ───────────────────────────────────────
+        try:
+            import subprocess as _sp
+            _sp.Popen(f"start {settings_uri}", shell=True)
+        except Exception:
+            pass
+
+    def _create_system_settings_link(self, parent, setting):
+        """Create a link button to open system settings for this setting"""
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Create a link-style button
+        link_btn = ttk.Button(
+            parent,
+            text="⚙️ Open in System Settings",
+            command=lambda: self._launch_system_settings(setting),
+            style="Link.TButton"
+        )
+        
+        # Configure link style if not already done
+        try:
+            style = ttk.Style()
+            style.configure("Link.TButton", 
+                          foreground="blue", 
+                          font=("Segoe UI", 9, "underline"),
+                          relief="flat",
+                          background="white")
+        except:
+            pass
+        
+        return link_btn
+
+    def _should_show_system_settings_link(self, setting):
+        """Determine if a setting should show system settings link"""
+        # Show system settings link for ALL settings in Manual Configuration
+        # This provides users with direct access to native Windows settings
+        return True
+
+    def _create_tooltip(self, widget, text):
+        """Create a tooltip for a widget"""
+        def on_enter(event):
+            tooltip = tk.Toplevel()
+            tooltip.wm_overrideredirect(True)
+            tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
+            
+            label = tk.Label(tooltip, text=text, background="#ffffe0", 
+                           relief=tk.SOLID, borderwidth=1, font=("Segoe UI", 9))
+            label.pack()
+            
+            widget.tooltip = tooltip
+
+        def on_leave(event):
+            if hasattr(widget, 'tooltip'):
+                widget.tooltip.destroy()
+                del widget.tooltip
+
+        widget.bind("<Enter>", on_enter)
+        widget.bind("<Leave>", on_leave)
 
     def _create_button_controls(self, parent, setting, current_val, options, setting_id, callback=None):
         """Create button controls for multi-option settings"""
@@ -756,12 +1483,18 @@ class MainWindow:
         
         buttons = []
         for option_name, option_value in options.items():
+            # Compare current value with option value for selection state
             is_selected = str(current_val) == str(option_value)
             
             option_btn = ttk.Button(buttons_frame, text=option_name,
                                 style=("Accent.TButton" if is_selected else "TButton"),
                                 width=12)
             option_btn.pack(side=tk.LEFT, padx=(0, 5))
+            
+            # Add tooltip if hint is available
+            hint = self._get_option_hint(setting, option_name)
+            if hint:
+                self._create_tooltip(option_btn, hint)
             
             if callback:
                 option_btn.bind("<Button-1>", lambda e, s=setting, v=option_value, btn=option_btn: callback(s, v, btn))
@@ -778,12 +1511,18 @@ class MainWindow:
         
         buttons = []
         for option_name, option_value in options.items():
+            # Compare current value with option value for selection state
             is_selected = str(current_val) == str(option_value)
             
             option_btn = ttk.Button(control_frame, text=option_name,
                                 style=("Accent.TButton" if is_selected else "TButton"),
                                 width=15)
             option_btn.pack(side=tk.LEFT, padx=(0, 8))
+            
+            # Add tooltip if hint is available
+            hint = self._get_option_hint(setting, option_name)
+            if hint:
+                self._create_tooltip(option_btn, hint)
             
             if callback:
                 option_btn.bind("<Button-1>", lambda e, s=setting, v=option_value, btn=option_btn: callback(s, v, btn))
@@ -829,6 +1568,15 @@ class MainWindow:
         
         # Parse from values field in settings.json
         if hasattr(setting, 'values') and setting.values:
+            # Check if values is already a dictionary (parsed by setting_loader)
+            if isinstance(setting.values, dict):
+                # setting_loader parses as: registry_value -> user_friendly_label
+                # But we need: user_friendly_label -> registry_value for display
+                for reg_val, label in setting.values.items():
+                    options[label] = reg_val
+                return options
+            
+            # Otherwise, parse from string format
             values_str = str(setting.values)
 
             # If it's a numeric range (e.g. "1-20"), it's a slider setting, not discrete options.
@@ -846,12 +1594,12 @@ class MainWindow:
                 if '=' not in option:
                     continue
                 left, right = option.split('=', 1)
-                value = left.strip()
-                name = right.strip()
+                value = left.strip()  # Registry value (e.g., "0", "1")
+                name = right.strip()  # User-friendly label (e.g., "Left", "Center")
                 if value and name:
-                    options[name] = value
+                    options[name] = value  # Map label -> registry value
         else:
-            # Default boolean options
+            # Default boolean options with user-friendly labels
             if setting.value_type == "REG_DWORD":
                 options = {
                     "Enable": "1",
@@ -930,6 +1678,7 @@ class MainWindow:
             self._update_row_selection_state(setting_id)
 
     def _update_row_selection_state(self, setting_id):
+        """Update the visual selection state of setting controls"""
         row = self.manual_row_widgets.get(setting_id)
         if not row:
             return
@@ -938,10 +1687,30 @@ class MainWindow:
         if not setting:
             return
 
+        # Read current registry value
         current_val = self.registry_handler.read_value(setting.hive, setting.key_path, setting.value_name)
-        for btn, opt_val in row.get("buttons", []) or []:
-            is_selected = str(current_val) == str(opt_val)
-            btn.configure(style=("Accent.TButton" if is_selected else "TButton"))
+        
+        # Update current value display
+        friendly_label = self._get_friendly_label_for_value(setting, current_val)
+        current_value_label = row.get("current_value_label")
+        if current_value_label:
+            current_value_label.config(text=f"Current: {friendly_label}")
+        
+        # Update button selection states
+        buttons = row.get("buttons", [])
+        if buttons:
+            for btn, opt_val in buttons:
+                # Compare registry value with option value
+                is_selected = str(current_val) == str(opt_val)
+                btn.configure(style=("Accent.TButton" if is_selected else "TButton"))
+        
+        # Update slider value if present
+        slider_var = row.get("slider_var")
+        if slider_var and current_val is not None:
+            try:
+                slider_var.set(float(current_val))
+            except (TypeError, ValueError):
+                pass  # Keep current slider value if conversion fails
 
     def update_status(self, text, progress=None):
         if not self.status_label:

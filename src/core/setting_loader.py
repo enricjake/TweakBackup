@@ -5,9 +5,20 @@ Setting Loader for WinSet - Loads settings from JSON with security validation.
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from src.models.setting import RegistrySetting, SettingCategory, SettingType, Setting
+
+
+def _safe_print(*args, **kwargs):
+    """Print with Unicode-safe encoding."""
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        # Fallback: encode with replacement characters
+        safe_args = [str(arg).encode('ascii', 'replace').decode('ascii') for arg in args]
+        print(*safe_args, **kwargs)
 
 
 class SettingLoader:
@@ -200,7 +211,7 @@ class SettingLoader:
     def load_settings(self):
         """Load settings from JSON file with comprehensive validation."""
         if not os.path.exists(self.resource_path):
-            print(f"Settings resource not found: {self.resource_path}")
+            _safe_print(f"Settings resource not found: {self.resource_path}")
             return
 
         try:
@@ -209,26 +220,26 @@ class SettingLoader:
                 content = f.read(50 * 1024 * 1024)  # 50 MB max
                 data = json.loads(content)
         except json.JSONDecodeError as e:
-            print(f"Invalid JSON in settings file: {e}")
+            _safe_print(f"Invalid JSON in settings file: {e}")
             return
         except Exception as e:
-            print(f"Error reading settings file: {e}")
+            _safe_print(f"Error reading settings file: {e}")
             return
 
         if not isinstance(data, list):
-            print("Settings file must contain a list of categories")
+            _safe_print("Settings file must contain a list of categories")
             return
 
         # Limit total categories
         if len(data) > 50:
-            print("Too many categories in settings file")
+            _safe_print("Too many categories in settings file")
             return
 
         for cat_data in data:
             # Validate category structure
             valid, error = self._validate_category_data(cat_data)
             if not valid:
-                print(f"Skipping invalid category: {error}")
+                _safe_print(f"Skipping invalid category: {error}")
                 continue
 
             cat_name = cat_data.get("name")
@@ -243,7 +254,7 @@ class SettingLoader:
                 # Validate setting data
                 valid, error = self._validate_setting_data(s_data, cat_name)
                 if not valid:
-                    print(f"Skipping setting '{s_data.get('name', 'unknown')}' in category '{cat_name}': {error}")
+                    _safe_print(f"Skipping setting '{s_data.get('name', 'unknown')}' in category '{cat_name}': {error}")
                     continue
 
                 try:
@@ -271,20 +282,37 @@ class SettingLoader:
                             # Limit size of values dictionary
                             if len(s_data["values"]) <= 50:
                                 setting.values = s_data["values"]
+                        elif isinstance(s_data["values"], str):
+                            # Parse the string format: "0 = Left, 1 = Center"
+                            options = {}
+                            for pair in s_data["values"].split(','):
+                                pair = pair.strip()
+                                if '=' in pair:
+                                    key, val = pair.split('=', 1)
+                                    options[key.strip()] = val.strip()
+                            if len(options) <= 50:
+                                setting.values = options
                     elif "range" in s_data:
                         if isinstance(s_data["range"], list) and len(s_data["range"]) <= 100:
                             setting.values = s_data["range"]
                             setting.is_range = True
                     
+                    # Store option hints if present
+                    if "option_hints" in s_data:
+                        if isinstance(s_data["option_hints"], dict):
+                            # Limit size of option hints dictionary
+                            if len(s_data["option_hints"]) <= 50:
+                                setting.option_hints = s_data["option_hints"]
+                
                     self.settings_by_category[enum_cat].append(setting)
                     settings_loaded += 1
                     
                 except Exception as e:
-                    print(f"Error loading setting {s_data.get('name')}: {e}")
+                    _safe_print(f"Error loading setting {s_data.get('name')}: {e}")
                     continue
             
             if settings_loaded == 0:
-                print(f"Warning: No valid settings loaded for category '{cat_name}'")
+                _safe_print(f"Warning: No valid settings loaded for category '{cat_name}'")
 
     def get_settings_for_category(self, category: SettingCategory) -> List[RegistrySetting]:
         """Get all settings for a specific category."""
