@@ -5,6 +5,12 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Manual version tag (e.g., 0.0.5). If empty, extracts from src/version.py'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -29,16 +35,13 @@ jobs:
       
       - name: Run Tests
         run: |
-          pytest tests/ --cov=src/ --cov-report=xml
+          pytest tests/
       
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
   release:
+
     name: Build & Release Artifacts
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Run on push to main OR manual dispatch
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: test
     runs-on: windows-latest
     steps:
@@ -56,13 +59,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Extract Version from Code
+      - name: Extract Version
         id: get_version
         shell: pwsh
         run: |
-          $version = python -c "from src.version import VERSION; print(VERSION)"
-          echo "VERSION=v$version" >> $env:GITHUB_OUTPUT
-          echo "Extracted Version: v$version"
+          $input_version = "${{ github.event.inputs.version }}"
+          if ($input_version -ne "") {
+              $version = $input_version
+              Write-Host "Using manual version: $version"
+          } else {
+              $version = python -c "from src.version import VERSION; print(VERSION)"
+              Write-Host "Extracted version from code: $version"
+          }
+          # Ensure version starts with 'v' for the tag if it doesn't already
+          if (-not $version.StartsWith("v")) { $tag = "v$version" } else { $tag = $version }
+          echo "VERSION=$tag" >> $env:GITHUB_OUTPUT
+          echo "Final Tag: $tag"
 
       - name: Build Standalone EXE
         run: |
