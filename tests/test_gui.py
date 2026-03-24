@@ -12,6 +12,15 @@ from src.gui.main_window import MainWindow
 import tkinter as tk
 
 
+try:
+    _root = tk.Tk()
+    _root.destroy()
+    TK_AVAILABLE = True
+except Exception:
+    TK_AVAILABLE = False
+
+
+@pytest.mark.skipif(not TK_AVAILABLE, reason="Tkinter/Display not available in this environment")
 class TestMainWindow:
     """Test MainWindow class."""
     

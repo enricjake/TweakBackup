@@ -23,16 +23,35 @@ class PresetManager:
         
         Args:
             presets_dir: Optional custom presets directory.
-                        Defaults to the 'presets' folder in the application directory.
+                        If provided, only this directory will be scanned.
         """
-        if presets_dir is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            self.presets_dir = os.path.join(base_dir, "presets")
-        else:
-            # Validate custom directory path
-            self.presets_dir = self._validate_preset_path(presets_dir)
-        
         self.presets: Dict[str, Dict[str, Any]] = {}
+        
+        if presets_dir:
+            # If a specific directory is provided (e.g., for testing), only use that.
+            self.presets_dirs = [self._validate_preset_path(presets_dir)]
+        else:
+            # Default mode: use both built-in and user-writable directories.
+            self.presets_dirs = []
+            
+            # 1. Built-in presets (shipped with the app)
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            builtin_dir = os.path.join(base_dir, "presets")
+            if os.path.exists(builtin_dir):
+                self.presets_dirs.append(builtin_dir)
+                
+            # 2. User-writable presets (persistent in APPDATA)
+            app_data_path = os.getenv("LOCALAPPDATA")
+            if not app_data_path:
+                app_data_path = os.path.expanduser("~") # Fallback
+            
+            user_dir = os.path.join(app_data_path, "WinSet", "presets")
+            os.makedirs(user_dir, exist_ok=True)
+            self.presets_dirs.append(user_dir)
+            
+            # Store the preferred writable directory for new presets
+            self.writable_presets_dir = user_dir
+            
         self._load_presets()
     
     def _validate_preset_path(self, path: str) -> str:
@@ -76,30 +95,31 @@ class PresetManager:
             raise ValueError(f"Invalid preset path: {e}")
     
     def _load_presets(self):
-        """Load all preset files from the presets directory."""
-        if not os.path.exists(self.presets_dir):
-            os.makedirs(self.presets_dir, exist_ok=True)
-            return
+        """Load all valid preset files from all configured directories."""
+        self.presets = {} # Reset
         
-        for filename in os.listdir(self.presets_dir):
-            if filename.endswith('.json'):
-                preset_path = os.path.join(self.presets_dir, filename)
-                try:
-                    with open(preset_path, 'r', encoding='utf-8') as f:
-                        content = f.read(1024 * 1024)  # 1MB limit
-                        preset_data = json.loads(content)
-                    
-                    # Validate preset structure
-                    if self._validate_preset_data(preset_data):
-                        preset_id = filename[:-5]  # Remove .json
-                        self.presets[preset_id] = preset_data
-                    else:
-                        print(f"Invalid preset structure in: {filename}")
+        for directory in self.presets_dirs:
+            if not os.path.exists(directory):
+                continue
+                
+            for filename in os.listdir(directory):
+                # New Requirement: Must end in .preset.json
+                if filename.endswith('.preset.json'):
+                    preset_path = os.path.join(directory, filename)
+                    try:
+                        with open(preset_path, 'r', encoding='utf-8') as f:
+                            preset_data = json.load(f)
                         
-                except json.JSONDecodeError as e:
-                    print(f"Invalid JSON in preset file {filename}: {e}")
-                except Exception as e:
-                    print(f"Error loading preset {filename}: {e}")
+                        # Validate preset structure and signature
+                        if self._validate_preset_data(preset_data):
+                            preset_id = filename[:-12]  # Remove .preset.json
+                            # User presets override built-in ones if IDs conflict
+                            self.presets[preset_id] = preset_data
+                        else:
+                            print(f"Skipping invalid/unsigned preset: {filename}")
+                            
+                    except Exception as e:
+                        print(f"Error loading preset {filename} from {directory}: {e}")
     
     def _validate_preset_data(self, data: Dict[str, Any]) -> bool:
         """
@@ -113,6 +133,10 @@ class PresetManager:
         """
         required_fields = ['name', 'description', 'settings']
         
+        # New Requirement: Internal signature check
+        if data.get('app') != 'WinSet':
+            return False
+
         for field in required_fields:
             if field not in data:
                 return False
@@ -278,6 +302,7 @@ class PresetManager:
             return False
         
         preset_data = {
+            "app": "WinSet",
             "name": name[:100],
             "description": description[:500],
             "icon": icon[:2] if icon else "⚙️",
@@ -286,7 +311,9 @@ class PresetManager:
             "settings": settings
         }
         
-        preset_path = os.path.join(self.presets_dir, f"{preset_id}.json")
+        # Determine output directory (default to first writable if multiple exist)
+        target_dir = getattr(self, 'writable_presets_dir', self.presets_dirs[-1])
+        preset_path = os.path.join(target_dir, f"{preset_id}.preset.json")
         
         try:
             with open(preset_path, 'w', encoding='utf-8') as f:
@@ -313,15 +340,22 @@ class PresetManager:
         if preset_id not in self.presets:
             return False
         
-        preset_path = os.path.join(self.presets_dir, f"{preset_id}.json")
+        # Find which directory contains this preset
+        deleted = False
+        for directory in self.presets_dirs:
+            preset_path = os.path.join(directory, f"{preset_id}.preset.json")
+            if os.path.exists(preset_path):
+                try:
+                    os.remove(preset_path)
+                    deleted = True
+                except Exception:
+                    pass # Might be read-only built-in dir
         
-        try:
-            os.remove(preset_path)
-            del self.presets[preset_id]
+        if deleted:
+            if preset_id in self.presets:
+                del self.presets[preset_id]
             return True
-        except Exception as e:
-            print(f"Error deleting preset: {e}")
-            return False
+        return False
     
     def get_preset_list(self) -> List[str]:
         """

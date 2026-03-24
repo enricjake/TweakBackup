@@ -1,0 +1,62 @@
+{
+  "name": "Privacy Max",
+  "created": "2023-11-01T10:00:00",
+  "modified": "2023-11-01T10:00:00",
+  "version": "1.0",
+  "windows_version": "Windows 10/11",
+  "description": "Maximum privacy and security. Disables telemetry, turns off advertising ID, restricts Cortana.",
+  "tags": [
+    "privacy",
+    "security",
+    "telemetry"
+  ],
+  "settings": {
+    "disable_telemetry": {
+      "id": "disable_telemetry",
+      "name": "Disable Telemetry",
+      "description": "Set diagnostic and usage data collection to minimal/security level.",
+      "value": 0,
+      "category": "privacy",
+      "type": "registry",
+      "requires_admin": true,
+      "requires_restart": true,
+      "hive": "HKEY_LOCAL_MACHINE",
+      "key_path": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+      "value_name": "AllowTelemetry",
+      "value_type": "REG_DWORD",
+      "is_expanded": false
+    },
+    "disable_cortana": {
+      "id": "disable_cortana",
+      "name": "Disable Cortana",
+      "description": "Disable Cortana AI assistant globally.",
+      "value": 0,
+      "category": "privacy",
+      "type": "registry",
+      "requires_admin": true,
+      "requires_restart": true,
+      "hive": "HKEY_LOCAL_MACHINE",
+      "key_path": "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+      "value_name": "AllowCortana",
+      "value_type": "REG_DWORD",
+      "is_expanded": false
+    },
+    "disable_advertising_id": {
+      "id": "disable_advertising_id",
+      "name": "Disable Advertising ID",
+      "description": "Prevent apps from using advertising ID for tracking.",
+      "value": 0,
+      "category": "privacy",
+      "type": "registry",
+      "requires_admin": false,
+      "requires_restart": false,
+      "hive": "HKEY_CURRENT_USER",
+      "key_path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo",
+      "value_name": "Enabled",
+      "value_type": "REG_DWORD",
+      "is_expanded": false
+    }
+  },
+  "checksum": "ce9887ab6c78e9f55acc149175d71c1b3f5dc6f5789dddece3cb1f0e4b8655fa",
+  "app": "WinSet"
+}

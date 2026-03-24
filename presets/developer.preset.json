@@ -1,0 +1,62 @@
+{
+  "name": "Developer Mode",
+  "created": "2023-11-01T10:00:00",
+  "modified": "2023-11-01T10:00:00",
+  "version": "1.0",
+  "windows_version": "Windows 10/11",
+  "description": "Configure Windows for software development. Shows hidden files/extensions, enables developer mode, relaxes execution policies.",
+  "tags": [
+    "developer",
+    "coding",
+    "productivity"
+  ],
+  "settings": {
+    "show_hidden_files": {
+      "id": "show_hidden_files",
+      "name": "Show Hidden Files",
+      "description": "Show hidden files, folders, and drives in File Explorer.",
+      "value": 1,
+      "category": "file_explorer",
+      "type": "registry",
+      "requires_admin": false,
+      "requires_restart": false,
+      "hive": "HKEY_CURRENT_USER",
+      "key_path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+      "value_name": "Hidden",
+      "value_type": "REG_DWORD",
+      "is_expanded": false
+    },
+    "show_file_extensions": {
+      "id": "show_file_extensions",
+      "name": "Show File Extensions",
+      "description": "Show file extensions for known file types.",
+      "value": 0,
+      "category": "file_explorer",
+      "type": "registry",
+      "requires_admin": false,
+      "requires_restart": false,
+      "hive": "HKEY_CURRENT_USER",
+      "key_path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+      "value_name": "HideFileExt",
+      "value_type": "REG_DWORD",
+      "is_expanded": false
+    },
+    "windows_developer_mode": {
+      "id": "windows_developer_mode",
+      "name": "Enable Windows Developer Mode",
+      "description": "Allows apps from any source and advanced development features.",
+      "value": 1,
+      "category": "system",
+      "type": "registry",
+      "requires_admin": true,
+      "requires_restart": false,
+      "hive": "HKEY_LOCAL_MACHINE",
+      "key_path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock",
+      "value_name": "AllowDevelopmentWithoutDevLicense",
+      "value_type": "REG_DWORD",
+      "is_expanded": false
+    }
+  },
+  "checksum": "dfab8007dc45d55268c741e42ebf5ac1b6c7a7defcf7dcf3cdbb1874ebf4a350",
+  "app": "WinSet"
+}

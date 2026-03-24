@@ -1,0 +1,62 @@
+{
+  "name": "Performance",
+  "created": "2023-11-01T10:00:00",
+  "modified": "2023-11-01T10:00:00",
+  "version": "1.0",
+  "windows_version": "Windows 10/11",
+  "description": "Optimize for maximum speed. Disables UI transparency, window animations, and drop shadows.",
+  "tags": [
+    "performance",
+    "speed",
+    "optimization"
+  ],
+  "settings": {
+    "disable_transparency": {
+      "id": "disable_transparency",
+      "name": "Disable Transparency Effects",
+      "description": "Turns off acrylic/mica transparency in the Start menu, Taskbar, and Action Center.",
+      "value": 0,
+      "category": "appearance",
+      "type": "registry",
+      "requires_admin": false,
+      "requires_restart": false,
+      "hive": "HKEY_CURRENT_USER",
+      "key_path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+      "value_name": "EnableTransparency",
+      "value_type": "REG_DWORD",
+      "is_expanded": false
+    },
+    "disable_window_animations": {
+      "id": "disable_window_animations",
+      "name": "Disable Window Animations",
+      "description": "Disable minimizing and maximizing animations.",
+      "value": 0,
+      "category": "appearance",
+      "type": "registry",
+      "requires_admin": false,
+      "requires_restart": false,
+      "hive": "HKEY_CURRENT_USER",
+      "key_path": "Control Panel\\Desktop\\WindowMetrics",
+      "value_name": "MinAnimate",
+      "value_type": "REG_SZ",
+      "is_expanded": false
+    },
+    "performance_visual_effects": {
+      "id": "performance_visual_effects",
+      "name": "Adjust for Best Performance",
+      "description": "Sets structural visual effects to Best Performance (turns off shadows, smooth scrolling).",
+      "value": 2,
+      "category": "system",
+      "type": "registry",
+      "requires_admin": false,
+      "requires_restart": false,
+      "hive": "HKEY_CURRENT_USER",
+      "key_path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects",
+      "value_name": "VisualFXSetting",
+      "value_type": "REG_DWORD",
+      "is_expanded": false
+    }
+  },
+  "checksum": "placeholder_performance",
+  "app": "WinSet"
+}

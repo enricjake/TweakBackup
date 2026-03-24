@@ -21,6 +21,7 @@ class TestPresetLoading:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create a valid preset file
             preset_data = {
+                "app": "WinSet",
                 "name": "Valid Preset",
                 "description": "This is a valid preset",
                 "icon": "✅",
@@ -30,7 +31,7 @@ class TestPresetLoading:
                 }
             }
             
-            preset_path = os.path.join(temp_dir, "valid.json")
+            preset_path = os.path.join(temp_dir, "valid.preset.json")
             with open(preset_path, 'w') as f:
                 json.dump(preset_data, f)
             
@@ -46,10 +47,11 @@ class TestPresetLoading:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create invalid preset files
             invalid_files = [
-                ("missing_name.json", {"description": "No name", "settings": {}}),
-                ("missing_settings.json", {"name": "No Settings"}),
-                ("wrong_type.json", {"name": "Wrong", "settings": "not a dict"}),
-                ("empty.json", {}),
+                ("missing_name.preset.json", {"app": "WinSet", "description": "No name", "settings": {}}),
+                ("missing_settings.preset.json", {"app": "WinSet", "name": "No Settings"}),
+                ("wrong_type.preset.json", {"app": "WinSet", "name": "Wrong", "settings": "not a dict"}),
+                ("missing_app.preset.json", {"name": "No App", "description": "Missing signature", "settings": {}}),
+                ("empty.preset.json", {}),
             ]
             
             for filename, data in invalid_files:
@@ -59,11 +61,12 @@ class TestPresetLoading:
             
             # Also create a valid one to ensure loading works
             valid_data = {
+                "app": "WinSet",
                 "name": "Valid",
                 "description": "Valid",
                 "settings": {"a": 1}
             }
-            with open(os.path.join(temp_dir, "valid.json"), 'w') as f:
+            with open(os.path.join(temp_dir, "valid.preset.json"), 'w') as f:
                 json.dump(valid_data, f)
             
             manager = PresetManager(presets_dir=temp_dir)
@@ -71,16 +74,16 @@ class TestPresetLoading:
             # Only valid preset should be loaded
             assert manager.get_preset_info("valid") is not None
             for filename, _ in invalid_files:
-                preset_id = filename[:-5]
+                preset_id = filename[:-12]
                 assert manager.get_preset_info(preset_id) is None
     
     def test_load_malformed_json_skipped(self):
         """Test that malformed JSON files are skipped."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create a malformed JSON file
-            filepath = os.path.join(temp_dir, "malformed.json")
+            filepath = os.path.join(temp_dir, "malformed.preset.json")
             with open(filepath, 'w') as f:
-                f.write('{"name": "test", "description": "malformed", "settings": {')
+                f.write('{"app": "WinSet", "name": "test", "description": "malformed", "settings": {')
             
             manager = PresetManager(presets_dir=temp_dir)
             
@@ -93,12 +96,13 @@ class TestPresetLoading:
             # Create a preset with 300 settings (exceeds limit of 200)
             many_settings = {f"setting_{i}": i for i in range(300)}
             preset_data = {
+                "app": "WinSet",
                 "name": "Too Many",
                 "description": "Has too many settings",
                 "settings": many_settings
             }
             
-            filepath = os.path.join(temp_dir, "toomany.json")
+            filepath = os.path.join(temp_dir, "toomany.preset.json")
             with open(filepath, 'w') as f:
                 json.dump(preset_data, f)
             
@@ -112,6 +116,7 @@ class TestPresetLoading:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create preset with malicious setting ID
             malicious_data = {
+                "app": "WinSet",
                 "name": "Malicious",
                 "description": "Attempts injection",
                 "settings": {
@@ -120,7 +125,7 @@ class TestPresetLoading:
                 }
             }
             
-            filepath = os.path.join(temp_dir, "malicious.json")
+            filepath = os.path.join(temp_dir, "malicious.preset.json")
             with open(filepath, 'w') as f:
                 json.dump(malicious_data, f)
             
