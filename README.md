@@ -42,7 +42,6 @@ Fine-tune every aspect of Windows with a user-friendly interface:
 3. Locate `WinSet.exe` in your Downloads folder.
 4. Right-click the file and select **Run as Administrator** (required for system modifications).
 5. Start configuring your Windows experience!
-4. Start configuring!
 
 ### Option 2: Run from Source
 ```bash
