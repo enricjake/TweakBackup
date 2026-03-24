@@ -8,29 +8,42 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.gui.main_window import MainWindow
 import tkinter as tk
 
+# Safe check for Tkinter availability
+def _check_tk():
+    try:
+        # Try to initialize a real toolkit instance
+        root = tk.Tk()
+        root.withdraw()
+        # Verify basic title access works
+        _ = root.title()
+        root.destroy()
+        return True
+    except: # Catch EVERYTHING (including TclError and SystemExit)
+        return False
 
-try:
-    _root = tk.Tk()
-    _root.destroy()
-    TK_AVAILABLE = True
-except Exception:
-    TK_AVAILABLE = False
+TK_AVAILABLE = _check_tk()
 
 
 @pytest.mark.skipif(not TK_AVAILABLE, reason="Tkinter/Display not available in this environment")
 class TestMainWindow:
     """Test MainWindow class."""
     
+    @pytest.fixture(autouse=True)
+    def setup_gui(self):
+        """Setup for GUI tests."""
+        from src.gui.main_window import MainWindow
+        self.MainWindowClass = MainWindow
+    
     def test_window_creation(self):
         """Test that main window can be created."""
         root = tk.Tk()
         try:
-            app = MainWindow(root)
+            from src.version import VERSION
+            app = self.MainWindowClass(root)
             assert app is not None
-            assert root.title() == "WinSet - Windows Configuration Toolkit"
+            assert root.title() == f"WinSet - v{VERSION} - Windows Configuration Toolkit"
         finally:
             root.destroy()
     
@@ -38,7 +51,7 @@ class TestMainWindow:
         """Test category selection functionality."""
         root = tk.Tk()
         try:
-            app = MainWindow(root)
+            app = self.MainWindowClass(root)
             
             # Test select all
             app.select_all_categories()

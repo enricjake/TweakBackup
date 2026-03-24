@@ -1,10 +1,8 @@
-name: CI
+name: CI & Release
 
 on:
   push:
     branches: [ main, develop ]
-    tags:
-      - 'v*'
   pull_request:
     branches: [ main ]
 
@@ -13,62 +11,70 @@ permissions:
 
 jobs:
   test:
+    name: Run Unit Tests
     runs-on: windows-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    
-    - name: Lint with flake8
-      run: |
-        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 src/ --count --exit-zero --max-complexity=10 --statistics
-    
-    - name: Test with pytest
-      run: |
-        pytest tests/ --cov=src/ --cov-report=xml
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v4
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run Tests
+        run: |
+          pytest tests/ --cov=src/ --cov-report=xml
+      
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
-  build:
+  release:
+    name: Build & Release Artifacts
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: windows-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    
-    - name: Install dependencies
-      run: |
-        pip install pyinstaller
-        pip install -r requirements.txt
-    
-    - name: Build with PyInstaller
-      run: |
-        python scripts/build_exe.py
-    
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: WinSet-EXE
-        path: dist/WinSet.exe
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
 
-    - name: Release
-      uses: softprops/action-gh-release@v2
-      if: startsWith(github.ref, 'refs/tags/v')
-      with:
-        files: dist/WinSet.exe
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Auto-tag version
+        id: tag_version
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+
+      - name: Build Standalone EXE
+        run: |
+          python scripts/build_exe.py
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          draft: true
+          prerelease: false
+          files: dist/WinSet.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

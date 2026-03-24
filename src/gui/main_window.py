@@ -28,8 +28,9 @@ class MainWindow:
     """Main application window with professional configuration tool design"""
     
     def __init__(self, root: tk.Tk):
+        from src.version import VERSION
         self.root = root
-        self.root.title("WinSet - Windows Configuration Toolkit")
+        self.root.title(f"WinSet - v{VERSION} - Windows Configuration Toolkit")
         
         # Missing attribute declarations
         self.bg_color: str = ""
