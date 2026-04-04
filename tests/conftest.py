@@ -8,6 +8,14 @@ import os  # Provides OS path operations for locating source directories
 import tempfile  # Creates temporary directories/files for isolated test environments
 from pathlib import Path  # Object-oriented filesystem path handling
 
+# Set up Tcl/Tk library paths before any Tkinter imports
+if sys.platform == 'win32':
+    python_dir = os.path.dirname(sys.executable)
+    tcl_dir = os.path.join(python_dir, 'tcl')
+    if os.path.exists(tcl_dir):
+        os.environ['TCL_LIBRARY'] = os.path.join(tcl_dir, 'tcl8.6')
+        os.environ['TK_LIBRARY'] = os.path.join(tcl_dir, 'tk8.6')
+
 # Add src to path so test modules can import application code from the src package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 

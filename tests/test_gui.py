@@ -30,7 +30,8 @@ def _check_tk():
         _ = root.title()  # Read the window title — will raise if Tk is broken
         root.destroy()  # Tear down the temporary window and release resources
         return True  # Tkinter is fully operational
-    except:  # Catch EVERYTHING (including TclError and SystemExit)
+    except Exception as e:  # Catch EVERYTHING (including TclError and SystemExit)
+        print(f"Tkinter check failed: {e}")
         return False  # Tkinter is not available or not functional
 
 
@@ -58,7 +59,10 @@ class TestMainWindow:
 
     def test_window_creation(self):
         """Test that main window can be created."""
-        root = tk.Tk()  # Create a real Tk root window for this test
+        try:
+            root = tk.Tk()  # Create a real Tk root window for this test
+        except tk.TclError as e:
+            pytest.skip(f"Tkinter initialization failed: {e}")
         try:
             from src.version import VERSION  # Import the app version string
 
@@ -75,7 +79,10 @@ class TestMainWindow:
 
     def test_category_selection(self):
         """Test category selection functionality."""
-        root = tk.Tk()  # Create a real Tk root window for this test
+        try:
+            root = tk.Tk()  # Create a real Tk root window for this test
+        except tk.TclError as e:
+            pytest.skip(f"Tkinter initialization failed: {e}")
         try:
             app = self.MainWindowClass(root)  # Instantiate MainWindow
 

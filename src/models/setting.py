@@ -207,7 +207,7 @@ class Setting:
 
 @dataclass
 class RegistrySetting(Setting):
-    """Setting stored in the Windows Registry.
+    r"""Setting stored in the Windows Registry.
 
     Represents a single registry value that WinSet can read, validate, and
     write.  The `hive`, `key_path`, `value_name`, and `value_type` fields
