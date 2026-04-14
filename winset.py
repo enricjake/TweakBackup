@@ -46,7 +46,6 @@ logger = logging.getLogger(__name__)
 # application modules (e.g. src.gui.main_window) can be imported directly.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-
 def check_admin():
     """Check if the current process is running with administrator privileges on Windows.
 
@@ -60,6 +59,29 @@ def check_admin():
         # Fallback: if the API is unavailable (e.g. non-Windows), assume not admin.
         return False
 
+
+def is_frozen():
+    """Check if the application is running as a frozen PyInstaller executable.
+
+    Returns:
+        bool: True if running as .exe, False if running as script.
+    """
+    return getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+
+
+def get_executable_path():
+    """Get the path to the current executable.
+
+    For frozen PyInstaller apps, returns the bundled .exe path.
+    For script execution, returns sys.executable.
+
+    Returns:
+        str: Path to the executable.
+    """
+    if is_frozen():
+        # PyInstaller temp extraction folder - use sys.executable for the actual .exe
+        return sys.executable
+    return sys.executable
 
 def main():
     """Main entry point for the WinSet application.
@@ -90,8 +112,9 @@ def main():
             # Relaunch the application with elevated (administrator) privileges
             # using the Windows ShellExecute 'runas' verb.
             logger.info("Relaunching as administrator")
+            exe_path = get_executable_path()
             ctypes.windll.shell32.ShellExecuteW(
-                None, "runas", sys.executable, " ".join(sys.argv), None, 1
+                None, "runas", exe_path, " ".join(sys.argv), None, 1
             )
 
         # Close the hidden root window and exit since we're either relaunching or the user declined.
@@ -119,3 +142,4 @@ def main():
 if __name__ == "__main__":
     # Entry point when running this script directly (not imported as a module).
     main()
+

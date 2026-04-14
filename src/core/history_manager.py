@@ -54,7 +54,10 @@ class HistoryManager:
         #   (guarded by _lock below).
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
 
-        if os.name == "nt":
+        # Set file permissions AFTER the database is created to ensure
+        # the current user can access it. Use OWNER_SECURITY_INFORMATION
+        # combined with DACL_SECURITY_INFORMATION to preserve access.
+        if os.name == "nt" and os.path.exists(self.db_path):
             try:
                 import win32security
                 import win32api
@@ -68,10 +71,15 @@ class HistoryManager:
                     win32security.ACL_REVISION, ntsecuritycon.FILE_ALL_ACCESS, sid
                 )
                 sd.SetSecurityDescriptorDacl(1, dacl, 0)
+                # Use both OWNER and DACL to preserve owner while setting access
                 win32security.SetFileSecurity(
-                    self.db_path, win32security.DACL_SECURITY_INFORMATION, sd
+                    self.db_path,
+                    win32security.OWNER_SECURITY_INFORMATION
+                    | win32security.DACL_SECURITY_INFORMATION,
+                    sd
                 )
             except Exception:
+                # Permission setting failed - database should still work for this user
                 pass
 
         # _lock: A reentrant lock that serializes all database access so that
