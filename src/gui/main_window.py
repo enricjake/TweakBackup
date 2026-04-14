@@ -1939,10 +1939,10 @@ class MainWindow:
         try:
             if target.startswith("uri:"):
                 uri = target[4:]
-                subprocess.Popen(f"start {uri}", shell=True)
+                os.startfile(uri)
             elif target.startswith("cmd:"):
                 cmd = target[4:]
-                subprocess.Popen(cmd, shell=True)
+                subprocess.Popen(cmd.split(), shell=False)
         except Exception:
             # Non-blocking UX: fail quietly so manual edits still work.
             pass
@@ -3075,11 +3075,8 @@ class MainWindow:
         Args:
             tool_name: The executable or command to launch (e.g. "control", "services.msc").
         """
-        import subprocess
-        import os
-
         try:
-            subprocess.Popen(tool_name, shell=True)
+            os.startfile(tool_name)
             self.update_status(f"Opened {tool_name}")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to open {tool_name}: {str(e)}")
+        except Exception:
+            messagebox.showerror("Error", "Failed to open system tool")

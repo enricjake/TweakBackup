@@ -112,7 +112,7 @@ class RegistryHandler:
         # @ signs which all appear in legitimate Windows registry paths.
         # The regex anchors to start (^) and end ($) of the string so the entire
         # path must consist of allowed characters.
-        if not re.match(r"^[a-zA-Z0-9\\\-_.{}$@ ]+$", key_path):
+        if not re.match(r"^[a-zA-Z0-9\\\-_.{} ]+$", key_path):
             raise ValueError(f"Invalid characters in key path: {key_path}")
 
         return True

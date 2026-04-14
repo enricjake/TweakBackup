@@ -177,12 +177,12 @@ class PresetManager:
                         outside allowed directories.
         """
         try:
-            # Resolve the path to an absolute, symlink-resolved form.
-            safe_path = Path(path).resolve()
-
             # ---- Dangerous-string check ----
             # Reject paths containing characters or keywords that could
             # indicate command injection or path traversal attempts.
+            # IMPORTANT: Check the ORIGINAL input string, not the resolved path,
+            # to catch ".." and other traversal attempts that might resolve to
+            # allowed directories.
             dangerous_strings = [
                 ";",
                 "--",
@@ -195,10 +195,22 @@ class PresetManager:
                 "INSERT",
                 "UPDATE",
             ]
-            path_str = str(safe_path).lower()  # Case-insensitive comparison
+            original_path_lower = path.lower()  # Use original input for checking
             for s in dangerous_strings:
-                if s in path_str:
+                if s in original_path_lower:
                     raise ValueError(f"Dangerous string detected in path: {s}")
+
+            # ---- Additional traversal check ----
+            # Ensure the path doesn't try to escape via ".." after normalization
+            # by comparing resolved path components against original intent
+            import os
+
+            normalized = os.path.normpath(path)
+            if ".." in normalized:
+                raise ValueError(f"Path traversal detected in path: {path}")
+
+            # Resolve the path to an absolute, symlink-resolved form
+            safe_path = Path(path).resolve()
 
             # ---- Allowed-directory check ----
             # The path is permitted if it resides under the system temp dir,

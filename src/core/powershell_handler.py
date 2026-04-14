@@ -5,7 +5,7 @@ PowerShell handler for WinSet - executes WMI and PowerShell scripts.
 import subprocess  # nosec - B404: subprocess needed for PowerShell, handled securely
 import re
 import os
-from typing import Tuple, List, Optional
+from typing import Tuple, Optional
 
 
 class PowerShellHandler:
@@ -24,7 +24,7 @@ class PowerShellHandler:
     # dollar signs, hashes, asterisks, question marks, and exclamation marks.
     # Any command containing characters outside this set is rejected as a safety
     # measure against injection of unexpected or dangerous tokens.
-    ALLOWED_COMMAND_CHARS = r"^[\w\s\-\{\}\[\]\(\)\.\\/:;=\'\"\|\&\%\$\#\*\?\!]+$"
+    ALLOWED_COMMAND_CHARS = r"^[\w\s\-\{\}\[\]\(\)\.\\/:=\'\"\#\*\?\!]+$"
 
     # List of regex patterns that match known dangerous PowerShell/cmd commands.
     # During validation each pattern is tested against the command string (case-
@@ -60,8 +60,9 @@ class PowerShellHandler:
         # or a non-standard Windows install), fall back to resolving
         # "powershell.exe" via the system PATH as a last resort.
         if not os.path.exists(self.powershell_path):
-            # Fallback to path if absolute not found (for testing environments)
-            self.powershell_path = "powershell.exe"
+            raise RuntimeError(
+                "PowerShell not found at expected location. Cannot execute commands safely."
+            )
 
     def _validate_command(self, command: str) -> Tuple[bool, str]:
         """
@@ -115,9 +116,7 @@ class PowerShellHandler:
             # Retry with an extended character set that additionally permits
             # commas, which appear in some legitimate PowerShell expressions
             # (e.g. array literals, parameter lists).
-            if not re.match(
-                r"^[\w\s\-\{\}\[\]\(\)\.\\/:;=\'\"\|\&\%\$\#\*\?\!\,]+$", command
-            ):
+            if not re.match(r"^[\w\s\-\{\}\[\]\(\)\.\\/:=\'\"\#\*\?\!\,]+$", command):
                 return False, "Command contains invalid characters"
 
         # Command passed all validation checks.
@@ -276,15 +275,20 @@ class PowerShellHandler:
             return False, f"Cannot disable critical system service: {service_name}"
 
         # Construct a compound PowerShell command:
-        #   1. Set-Service -Name '<name>' -StartupType Disabled
+        #   1. Set-Service -Name "<name>" -StartupType Disabled
         #      -> changes the service's startup type to "Disabled" so it will
         #         no longer start automatically on boot.
-        #   2. Stop-Service -Name '<name>' -Force
+        #   2. Stop-Service -Name "<name>" -Force
         #      -> immediately stops the running service instance. The -Force
         #         flag suppresses confirmation prompts.
         # The two commands are joined by a semicolon so they execute
         # sequentially in a single PowerShell invocation.
-        command = f"Set-Service -Name '{service_name}' -StartupType Disabled; Stop-Service -Name '{service_name}' -Force"
+        # Use double quotes with escaped doubling to prevent injection.
+        escaped_name = service_name.replace('"', '""')
+        command = (
+            f'Set-Service -Name "{escaped_name}" -StartupType Disabled; '
+            f'Stop-Service -Name "{escaped_name}" -Force'
+        )
         return self.run_command(command)
 
     def get_service_status(self, service_name: str) -> Optional[str]:
@@ -305,7 +309,9 @@ class PowerShellHandler:
         # Build a PowerShell expression that retrieves the .Status property
         # of the specified service. Get-Service is the standard PowerShell
         # cmdlet for querying Windows service information.
-        command = f"(Get-Service -Name '{service_name}').Status"
+        # Use double quotes with escaped doubling to prevent injection.
+        escaped_name = service_name.replace('"', '""')
+        command = f'(Get-Service -Name "{escaped_name}").Status'
         # Execute the command. If successful, strip whitespace from the
         # returned status string (e.g. "Running", "Stopped", "Disabled").
         success, output = self.run_command(command)

@@ -110,7 +110,14 @@ class ProfileImporter:
                 data = json.load(f)
 
             # If the profile contains a checksum, verify it hasn't been tampered with or corrupted
-            if "checksum" in data and not self._verify_checksum(data):
+            if "checksum" not in data:
+                return (
+                    False,
+                    "Profile missing integrity checksum. Only verified profiles can be imported.",
+                    None,
+                )
+
+            if not self._verify_checksum(data):
                 return (
                     False,
                     "Profile integrity check failed. The file may have been tampered with or corrupted.",
@@ -251,7 +258,11 @@ class ProfileImporter:
                 continue
 
             if isinstance(setting, RegistrySetting):
-                # Delegate to the RegistryHandler to write the value into the Windows Registry
+                try:
+                    self.registry._validate_key_path(setting.key_path)
+                except ValueError:
+                    results[setting_id] = False
+                    continue
                 success = self.registry.write_value(
                     hive=setting.hive,  # Target registry hive (e.g., HKEY_CURRENT_USER)
                     key_path=setting.key_path,  # Path to the registry key

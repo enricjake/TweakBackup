@@ -54,6 +54,26 @@ class HistoryManager:
         #   (guarded by _lock below).
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
 
+        if os.name == "nt":
+            try:
+                import win32security
+                import win32api
+                import ntsecuritycon
+
+                sid = win32security.LookupAccountName(None, win32api.GetUserName())[0]
+                sd = win32security.SECURITY_DESCRIPTOR()
+                sd.SetSecurityDescriptorOwner(sid, False)
+                dacl = win32security.ACL()
+                dacl.AddAccessAllowedAce(
+                    win32security.ACL_REVISION, ntsecuritycon.FILE_ALL_ACCESS, sid
+                )
+                sd.SetSecurityDescriptorDacl(1, dacl, 0)
+                win32security.SetFileSecurity(
+                    self.db_path, win32security.DACL_SECURITY_INFORMATION, sd
+                )
+            except Exception:
+                pass
+
         # _lock: A reentrant lock that serializes all database access so that
         #   concurrent threads (e.g., a background sync and the UI) never corrupt
         #   the database.

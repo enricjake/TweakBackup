@@ -9,11 +9,7 @@ import subprocess  # nosec
 
 # os: Standard library module for OS-level operations (not actively used but
 # imported for potential future path or environment handling).
-import os
-
-# sys: Standard library module for system-specific parameters (not actively used
-# but imported for potential future use such as exiting on fatal errors).
-import sys
+import base64
 
 
 class BackupManager:
@@ -28,14 +24,16 @@ class BackupManager:
             False otherwise (including if the Windows API call fails).
         """
         try:
-            # ctypes.windll.shell32.IsUserAnAdmin() calls the Windows Shell32
-            # API. A non-zero return value indicates the user is running as
-            # Administrator. We compare != 0 to coerce the result to a bool.
-            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            # Use IsElevated() which is more reliable than IsUserAnAdmin
+            # IsElevated returns a non-zero value if the current process
+            # is running with elevated privileges (UAC admin or full admin).
+            return ctypes.windll.shell32.IsElevated() != 0
         except Exception:
-            # Any exception (e.g., running on non-Windows) means admin check
-            # failed, so we conservatively return False.
-            return False
+            # Fallback to IsUserAnAdmin if IsElevated is not available
+            try:
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            except Exception:
+                return False
 
     def create_restore_point(
         self, description: str = "WinSet Configuration Backup"
@@ -76,7 +74,10 @@ class BackupManager:
             #     a configuration-change type (appropriate for WinSet tweaks).
             #   -ErrorAction Stop: ensures non-terminating errors are raised as
             #     terminating errors so we can detect failures via exit code.
-            ps_script = f'Checkpoint-Computer -Description "{sanitized_desc}" -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop'
+            ps_script = (
+                f'Checkpoint-Computer -Description "{sanitized_desc}" '
+                f'-RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop'
+            )
 
             # --- PowerShell path ---
             # Hardcoded absolute path to the PowerShell executable. Using a
@@ -101,14 +102,15 @@ class BackupManager:
             #   up on the user's desktop (Windows-only flag).
             # nosec B603: suppressed because the command array uses a hardcoded
             #   path and sanitized arguments — no shell=True.
+            encoded = base64.b64encode(ps_script.encode("utf-16-le")).decode("ascii")
             result = subprocess.run(  # nosec B603
                 [
                     powershell_path,
                     "-NoProfile",
                     "-ExecutionPolicy",
                     "Bypass",
-                    "-Command",
-                    ps_script,
+                    "-EncodedCommand",
+                    encoded,
                 ],
                 capture_output=True,
                 text=True,
